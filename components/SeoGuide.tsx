@@ -27,6 +27,14 @@ export const FAQ: { q: string; a: string }[] = [
     a: "Exactly 1024×500 px, JPEG or 24-bit PNG without alpha. It is required to publish a store listing.",
   },
   {
+    q: "Can I mention Android or Google Play in my App Store description?",
+    a: "No. App Review Guideline 2.3.10 says not to include names, icons or imagery of other mobile platforms or alternative app marketplaces in your app or metadata. StoreShot\u2019s Listing Text tab flags these and can remove the sentences for you.",
+  },
+  {
+    q: "Are emoji allowed in App Store and Google Play listings?",
+    a: "Apple allows emoji in app metadata (guideline 4.5.6). Google Play does not allow emojis, emoticons or repeated special characters in the app title, icon or developer name. The Listing Text tab checks each field against the right store\u2019s rule.",
+  },
+  {
     q: "Are my images uploaded to a server?",
     a: "No. StoreShot runs entirely in your browser using the Canvas API and Web Workers. Your screenshots and icons never leave your device.",
   },

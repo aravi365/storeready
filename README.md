@@ -18,6 +18,7 @@ Free, private, in-browser tool that resizes App Store and Google Play screenshot
 - **Full-size preview popup** for any generated file (100% zoom, arrow-key browsing, compliance details, download).
 - **Remove individual outputs:** drop one size for one image (e.g. keep iPad 13″, skip Play 10″ tablet) with Undo and Restore.
 - **Android tablets optional:** one switch skips all Google Play tablet sizes (phone screenshots alone are enough to publish).
+- **Listing Text checker:** paste your App Store and Google Play name, subtitle, descriptions and keywords; every line is checked against Apple's App Review Guidelines (e.g. 2.3.10 no Android/Google Play mentions, 2.3.7 no prices or "#1" claims) and Google Play's metadata policy (no emoji or ranking terms in titles), with one-click fixes, Undo, and a fastlane metadata export.
 - **Adjustable text size** next to the light/dark toggle, remembered between visits.
 - **App icon generator:** iOS `AppIcon.appiconset`, Android legacy, round, adaptive and Android 13 themed icons, plus the App Store 1024 and Google Play 512 store icons.
 

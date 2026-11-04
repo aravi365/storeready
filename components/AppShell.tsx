@@ -1,18 +1,40 @@
 "use client";
 
 import { useState } from "react";
-import { Images, ShieldCheck, Sparkles } from "lucide-react";
+import { FileText, Images, ShieldCheck, Sparkles } from "lucide-react";
 import { IconGenerator } from "@/components/IconGenerator";
+import { ListingStudio } from "@/components/ListingStudio";
 import { ScreenshotStudio } from "@/components/ScreenshotStudio";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { FontSizeControl } from "@/components/FontSizeControl";
 import { cn } from "@/lib/utils";
 
-type Tab = "screenshots" | "icons";
+type Tab = "screenshots" | "icons" | "listing";
 
-const TABS: { id: Tab; label: string; icon: React.ReactNode; blurb: string }[] = [
-  { id: "screenshots", label: "Screenshots", icon: <Images className="size-4" />, blurb: "App Store & Google Play" },
-  { id: "icons", label: "App Icons", icon: <Sparkles className="size-4" />, blurb: "Flutter · React Native · Expo" },
+const TABS: { id: Tab; label: string; icon: React.ReactNode; title: string; intro: string }[] = [
+  {
+    id: "screenshots",
+    label: "Screenshots",
+    icon: <Images className="size-4" />,
+    title: "Upload-ready screenshots in one drop",
+    intro:
+      "Drop your mobile and iPad sets. StoreShot detects each image, scales it to every App Store and Google Play size, flattens any transparency, and checks each file against the store rules.",
+  },
+  {
+    id: "icons",
+    label: "App Icons",
+    icon: <Sparkles className="size-4" />,
+    title: "Every app icon, from one image",
+    intro: "Generate iOS asset catalogs, Android adaptive and themed icons, and store listing icons, laid out for your Flutter, React Native or Expo project.",
+  },
+  {
+    id: "listing",
+    label: "Listing Text",
+    icon: <FileText className="size-4" />,
+    title: "Listing text that passes review",
+    intro:
+      "Paste your app name, descriptions and keywords. StoreShot checks them against Apple's App Review Guidelines and Google Play's metadata policy, explains each problem, and fixes what it safely can.",
+  },
 ];
 
 export function AppShell() {
@@ -71,21 +93,22 @@ export function AppShell() {
         <div className="mb-8 max-w-2xl">
           <p className="mb-2 text-sm font-medium text-primary">Free App Store &amp; Google Play asset toolkit</p>
           <h1 className="bg-gradient-to-br from-foreground to-foreground/60 bg-clip-text text-3xl font-semibold tracking-tight text-transparent sm:text-4xl">
-            {tab === "screenshots" ? "Upload-ready screenshots in one drop" : "Every app icon, from one image"}
+            {TABS.find((t) => t.id === tab)!.title}
           </h1>
           <p className="mt-2 text-muted-foreground">
-            {tab === "screenshots"
-              ? "Drop your mobile and iPad sets. StoreShot detects each image, scales it to every App Store and Google Play size, flattens any transparency, and checks each file against the store rules."
-              : "Generate iOS asset catalogs, Android adaptive and themed icons, and store listing icons, laid out for your Flutter, React Native or Expo project."}
+            {TABS.find((t) => t.id === tab)!.intro}
           </p>
         </div>
 
-        {/* Both tools stay mounted so switching tabs keeps your work */}
+        {/* All tools stay mounted so switching tabs keeps your work */}
         <div hidden={tab !== "screenshots"}>
           <ScreenshotStudio />
         </div>
         <div hidden={tab !== "icons"}>
           <IconGenerator />
+        </div>
+        <div hidden={tab !== "listing"}>
+          <ListingStudio />
         </div>
 
       </main>
