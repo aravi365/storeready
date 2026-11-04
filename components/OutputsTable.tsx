@@ -1,11 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CheckCircle2, Download, Loader2, Rows3, XCircle } from "lucide-react";
+import { CheckCircle2, Download, Eye, Loader2, Rows3, XCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Segmented } from "@/components/Segmented";
 import { cn } from "@/lib/utils";
 import { scaleFactor } from "@/utils/detect";
+import { planFit } from "@/utils/canvasResizer";
 import type { Asset, Job, OutputState } from "@/utils/jobs";
 
 const fmt = (n?: number) => (n === undefined ? "—" : n >= 1048576 ? `${(n / 1048576).toFixed(2)} MB` : `${Math.round(n / 1024)} KB`);
@@ -16,10 +17,12 @@ export function OutputsTable({
   jobs,
   assets,
   outputFor,
+  onPreview,
 }: {
   jobs: Job[];
   assets: Asset[];
   outputFor: (job: Job) => OutputState | undefined;
+  onPreview: (jobId: string) => void;
 }) {
   const [filter, setFilter] = useState<Filter>("all");
   const assetMap = useMemo(() => new Map(assets.map((a) => [a.id, a])), [assets]);
@@ -69,15 +72,22 @@ export function OutputsTable({
             {rows.map((j) => {
               const out = outputFor(j);
               const a = assetMap.get(j.assetId);
-              const f = a ? scaleFactor({ w: a.width, h: a.height }, j.size, j.opts.mode) : 1;
+              const snapped =
+                !!a && j.opts.mode === "fit" && planFit(a.width, a.height, j.size.w, j.size.h, j.opts.padding).strategy !== "letterbox";
+              const f = a ? scaleFactor({ w: a.width, h: a.height }, j.size, snapped ? "fill" : j.opts.mode) : 1;
               const path = out?.path ?? `${j.pathStem}.${j.enc.format === "png" ? "png" : "jpg"}`;
               const folder = path.split("/").slice(1, -1).join("/");
               return (
                 <tr key={j.id} className="border-t hover:bg-muted/40">
                   <td className="max-w-[280px] px-4 py-2">
-                    <div className="truncate font-mono font-medium" title={path}>
+                    <button
+                      type="button"
+                      onClick={() => onPreview(j.id)}
+                      className="block max-w-full truncate text-left font-mono font-medium hover:text-primary hover:underline"
+                      title={`Preview ${path}`}
+                    >
                       {path.split("/").pop()}
-                    </div>
+                    </button>
                     <div className="truncate font-mono text-[11px] text-muted-foreground">{folder}/</div>
                   </td>
                   <td className="max-w-[140px] truncate px-2 py-2 text-muted-foreground" title={a?.name}>
@@ -120,7 +130,15 @@ export function OutputsTable({
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-2 text-right">
+                  <td className="px-4 py-2 text-right whitespace-nowrap">
+                    <button
+                      type="button"
+                      onClick={() => onPreview(j.id)}
+                      className="inline-flex size-7 items-center justify-center rounded-md hover:bg-muted"
+                      aria-label={`Preview ${path.split("/").pop()}`}
+                    >
+                      <Eye className="size-3.5" />
+                    </button>
                     {out?.url && (
                       <a
                         href={out.url}

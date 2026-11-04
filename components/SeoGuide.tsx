@@ -8,7 +8,7 @@ import { PRESETS } from "@/utils/presets";
 export const FAQ: { q: string; a: string }[] = [
   {
     q: "What screenshot size does the App Store require in 2026?",
-    a: "Upload iPhone screenshots at 1320×2868 px (6.9-inch display, portrait) or 2868×1320 px (landscape); 1290×2796 and 1260×2736 are also accepted in that slot. If your app runs on iPad, add 13-inch iPad screenshots at 2064×2752 or 2048×2732 px. App Store Connect scales these down for smaller devices.",
+    a: "App Store Connect requires at least one screenshot for the medium Dynamic Island iPhone display: 1206×2622 or 1179×2556 px (6.3-inch, portrait, or the landscape equivalents). Most apps also upload the large display at 1320×2868 px (6.9-inch; 1290×2796 and 1260×2736 are accepted there too). If your app runs on iPad, add 13-inch iPad screenshots at 2064×2752 or 2048×2732 px. StoreShot exports the 6.3-inch, 6.9-inch and 13-inch sets by default.",
   },
   {
     q: "What screenshot sizes does iPhone Duo (the foldable iPhone) need?",
@@ -82,7 +82,7 @@ export function SeoGuide() {
             <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm text-muted-foreground">
               <li>Drop your phone screenshots into the Mobile set, iPad screenshots into the iPad / Tablet set and foldable screenshots into the iPhone Duo set, or drop whole folders (for example en/iphone and th/ipad) into Smart folder import.</li>
               <li>StoreShot detects each device from its resolution and tags English or Thai from the file name.</li>
-              <li>Choose Fit (letterbox), Fill (smart crop) or Stretch. Transparency is flattened automatically.</li>
+              <li>Choose Fit, Fill (smart crop) or Stretch. Fit keeps the whole image: if the shapes differ by under 1% it fills the frame with an even hairline trim, otherwise it adds background only where needed. Transparency is flattened automatically.</li>
               <li>Check the compliance badge on each preview, then download one ZIP sorted by store, language and device.</li>
             </ol>
           </div>

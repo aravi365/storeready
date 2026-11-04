@@ -4,6 +4,8 @@
  * Re-verified against the official docs on 2026-11-04:
  *  - Apple: https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications
  *    • 6.9" (Dynamic Island, large): 1320×2868, also accepts 1290×2796 and 1260×2736
+ *    • 6.3" (Dynamic Island, medium): 1206×2622 or 1179×2556 — REQUIRED: "At least one screenshot
+ *      for iPhone with Dynamic Island (medium display)" (re-verified 2026-11-05)
  *    • 6.5" (Face ID, large): 1284×2778 or 1242×2688 — fallback when no 6.9" set is provided
  *    • 13" iPad: 2064×2752 or 2048×2732 (required if the app runs on iPad)
  *    • 12.9" iPad (2nd gen): 2048×2732 — optional, scaled from 13" if missing
@@ -77,6 +79,18 @@ export const PRESETS: Preset[] = [
       accepted: both({ w: 1320, h: 2868 }, { w: 1290, h: 2796 }, { w: 1260, h: 2736 }),
     },
     note: "Primary iPhone set. App Store Connect scales it down for smaller iPhones.",
+  },
+  {
+    id: "as_iphone_63",
+    store: "app_store",
+    label: 'iPhone 6.3"',
+    folder: "iphone_6.3",
+    deviceClass: "phone",
+    category: "screenshot",
+    portrait: { w: 1206, h: 2622 },
+    defaultEnabled: true,
+    rules: { kind: "exact", accepted: both({ w: 1206, h: 2622 }, { w: 1179, h: 2556 }) },
+    note: "Required by App Store Connect: at least one screenshot for the medium Dynamic Island display.",
   },
   {
     id: "as_iphone_67",

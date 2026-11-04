@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Progress } from "@/components/ui/progress";
 import { ImageUploader } from "@/components/ImageUploader";
 import { OutputsTable } from "@/components/OutputsTable";
+import { OutputLightbox, type LightboxItem } from "@/components/OutputLightbox";
 import { PresetSelector } from "@/components/PresetSelector";
 import {
   DEFAULT_SETTINGS,
@@ -286,6 +287,35 @@ export function ScreenshotStudio() {
   );
   const outputForJob = useCallback((j: Job) => validOutput(j, outputs), [outputs, validOutput]);
 
+  // ───────── Full-size preview popup ─────────
+  const [previewId, setPreviewId] = useState<string | null>(null);
+  const lightboxItems = useMemo<LightboxItem[]>(
+    () =>
+      jobs.map((j) => {
+        const o = validOutput(j, outputs);
+        const ext = (o?.format ?? j.enc.format) === "png" ? "png" : "jpg";
+        return {
+          id: j.id,
+          title: `${j.preset.store === "app_store" ? "App Store" : "Google Play"} · ${j.preset.label} · ${j.locale.toUpperCase()}`,
+          path: o?.path ?? `${j.pathStem}.${ext}`,
+          source: assets.find((a) => a.id === j.assetId)?.name ?? "",
+          width: j.size.w,
+          height: j.size.h,
+          status: !o ? "queued" : o.status,
+          url: o?.url,
+          fileName: o?.fileName,
+          bytes: o?.bytes,
+          format: o?.format,
+          compliance: o?.compliance,
+          note: o?.note,
+          error: o?.error,
+        };
+      }),
+    [jobs, outputs, assets, validOutput],
+  );
+  const previewIndex = previewId ? lightboxItems.findIndex((i) => i.id === previewId) : -1;
+  const openPreview = useCallback((jobId: string) => setPreviewId(jobId), []);
+
   const percent =
     run.phase === "rendering"
       ? (run.done / Math.max(1, run.total)) * (run.kind === "export" ? 85 : 100)
@@ -303,13 +333,20 @@ export function ScreenshotStudio() {
           assets={assets}
           settings={settings}
           outputFor={outputFor}
+          onPreview={(assetId, presetId) => openPreview(`${assetId}:${presetId}`)}
           busy={exporting}
           onAdd={onAdd}
           onUpdate={onUpdate}
           onRemove={onRemove}
           onClear={onClear}
         />
-        <OutputsTable jobs={jobs} assets={assets} outputFor={outputForJob} />
+        <OutputsTable jobs={jobs} assets={assets} outputFor={outputForJob} onPreview={openPreview} />
+        <OutputLightbox
+          items={lightboxItems}
+          index={previewIndex >= 0 ? previewIndex : null}
+          onIndex={(i) => setPreviewId(lightboxItems[i]?.id ?? null)}
+          onClose={() => setPreviewId(null)}
+        />
       </section>
 
       <aside className="space-y-6 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:self-start lg:overflow-y-auto lg:pb-6">

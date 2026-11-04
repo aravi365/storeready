@@ -44,9 +44,10 @@ describe("resolveOrientation", () => {
 });
 
 describe("targetsFor", () => {
-  it("phone screenshot → default iPhone 6.9 + Play phone", () => {
+  it("phone screenshot → default iPhone 6.9, required iPhone 6.3, and Play phone", () => {
     expect(targetsFor(asset(), settings()).map((t) => `${t.preset.id} ${t.size.w}x${t.size.h}`)).toEqual([
       "as_iphone_69 1320x2868",
+      "as_iphone_63 1206x2622",
       "gp_phone 1080x1920",
     ]);
   });
@@ -63,7 +64,7 @@ describe("targetsFor", () => {
   });
   it("landscape sources get landscape targets", () => {
     const t = targetsFor(asset({ width: 2868, height: 1320 }), settings());
-    expect(t.map((x) => x.size)).toEqual([{ w: 2868, h: 1320 }, { w: 1920, h: 1080 }]);
+    expect(t.map((x) => x.size)).toEqual([{ w: 2868, h: 1320 }, { w: 2622, h: 1206 }, { w: 1920, h: 1080 }]);
   });
   it("feature graphic → only the 1024×500 preset", () => {
     expect(targetsFor(asset({ category: "feature_graphic", width: 1024, height: 500 }), settings()).map((t) => t.preset.id)).toEqual(["gp_feature"]);
@@ -105,10 +106,13 @@ describe("buildJobs", () => {
     );
     expect(jobs.map((j) => j.pathStem)).toEqual([
       "app-store-assets/app_store/en/iphone_6.9/01_home_1320x2868",
+      "app-store-assets/app_store/en/iphone_6.3/01_home_1206x2622",
       "app-store-assets/play_store/en/phone/01_home_1080x1920",
       "app-store-assets/app_store/en/iphone_6.9/02_settings_1320x2868",
+      "app-store-assets/app_store/en/iphone_6.3/02_settings_1206x2622",
       "app-store-assets/play_store/en/phone/02_settings_1080x1920",
       "app-store-assets/app_store/th/iphone_6.9/01_home_1320x2868",
+      "app-store-assets/app_store/th/iphone_6.3/01_home_1206x2622",
       "app-store-assets/play_store/th/phone/01_home_1080x1920",
       "app-store-assets/app_store/en/ipad_13/01_ipad_2064x2752",
       "app-store-assets/play_store/en/tablet_10in/01_ipad_1440x2560",
@@ -123,7 +127,7 @@ describe("buildJobs", () => {
       [asset({ status: "decoding" }), asset({ status: "error" }), asset({ locale: "th" }), asset({ name: "ok.png" })],
       settings({ locales: new Set(["en"]) }),
     );
-    expect(jobs).toHaveLength(2);
+    expect(jobs).toHaveLength(3); // iPhone 6.9, iPhone 6.3, Play phone
     expect(jobs.every((j) => j.pathStem.includes("_ok_"))).toBe(true);
   });
 

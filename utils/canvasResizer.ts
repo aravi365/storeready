@@ -2,7 +2,9 @@
  * Canvas resizing engine — runs on the main thread or inside a Web Worker
  * (uses OffscreenCanvas when available, falls back to <canvas>).
  *
- *  • fit     — contain + letterbox over a solid colour or blurred backdrop (no cropping)
+ *  • fit     — contain + letterbox over a solid colour or blurred backdrop. When the source shape is
+ *              within FIT_SNAP_TOLERANCE of the target (e.g. 6.7" → 6.9"), it fills edge to edge
+ *              instead, trimming at most that much, rather than adding hairline bars.
  *  • fill    — cover + smart crop (edge-energy focal point, or manual focus)
  *  • stretch — distort to exact size
  *
@@ -196,6 +198,46 @@ export function analyzeSource(src: Source): SourceAnalysis {
 
 // ───────── Composition ─────────
 
+/** Largest share of one dimension Fit may trim instead of adding bars (1%). */
+export const FIT_SNAP_TOLERANCE = 0.01;
+
+export interface FitPlan {
+  /** exact: same shape · snap: fills, trims ≤ tolerance · letterbox: whole image + bars */
+  strategy: "exact" | "snap" | "letterbox";
+  /** Share of the source cut off along one axis (snap only) */
+  trim: number;
+  /** Total bar size in target pixels along one axis (letterbox only) */
+  bars: number;
+  /** Axis the trim or bars are on */
+  axis: "x" | "y" | null;
+}
+
+/**
+ * Decides how Fit handles a shape mismatch. Pure, so previews, the renderer and tests agree.
+ * Padding means the user asked for space, so we never trim then.
+ */
+export function planFit(sw: number, sh: number, tw: number, th: number, padding = 0): FitPlan {
+  const sx = tw / sw;
+  const sy = th / sh;
+  const mismatch = 1 - Math.min(sx, sy) / Math.max(sx, sy);
+  // Cover scales by the larger factor, so the other axis overflows and is trimmed.
+  const trimAxis: FitPlan["axis"] = sx < sy ? "x" : "y";
+  if (padding <= 0) {
+    const scale = Math.min(sx, sy);
+    const dw = Math.round(sw * scale);
+    const dh = Math.round(sh * scale);
+    if (dw === tw && dh === th) return { strategy: "exact", trim: 0, bars: 0, axis: null };
+    if (mismatch <= FIT_SNAP_TOLERANCE) return { strategy: "snap", trim: mismatch, bars: 0, axis: trimAxis };
+  }
+  const pad = Math.round(Math.min(tw, th) * clamp(padding, 0, 0.25));
+  const scale = Math.min((tw - pad * 2) / sw, (th - pad * 2) / sh);
+  const barsX = tw - Math.round(sw * scale);
+  const barsY = th - Math.round(sh * scale);
+  // With padding both axes have space; report the larger gap.
+  const axis = barsX >= barsY ? "x" : "y";
+  return { strategy: "letterbox", trim: 0, bars: Math.max(barsX, barsY), axis: barsX === 0 && barsY === 0 ? null : axis };
+}
+
 /**
  * Draws `src` into a tw×th context according to `opts`. Pure geometry, so it works
  * identically for small live previews and full-resolution exports.
@@ -226,7 +268,18 @@ export function drawComposition(ctx: Ctx2D, src: Source, tw: number, th: number,
     return;
   }
 
-  // fit / letterbox
+  // fit
+  const plan = planFit(sw, sh, tw, th, opts.padding);
+  if (plan.strategy !== "letterbox") {
+    // Same shape, or within 1%: fill edge to edge with an even, centred trim (no hairline bars).
+    const scale = Math.max(tw / sw, th / sh);
+    const cw = Math.min(sw, tw / scale);
+    const ch = Math.min(sh, th / scale);
+    drawHQ(ctx, src, (sw - cw) / 2, (sh - ch) / 2, cw, ch, 0, 0, tw, th);
+    return;
+  }
+
+  // letterbox: whole image, bars filled with the blurred backdrop or the solid matte
   if (opts.backdrop === "blur") drawBlurBackdrop(ctx, src, tw, th);
 
   const pad = Math.round(Math.min(tw, th) * clamp(opts.padding, 0, 0.25));

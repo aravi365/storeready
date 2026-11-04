@@ -15,6 +15,7 @@ import {
   Loader2,
   Smartphone,
   BookOpen,
+  Maximize2,
   Tablet,
   Trash2,
   Upload,
@@ -29,6 +30,7 @@ import {
   MAX_INPUT_BYTES,
   createCanvas,
   drawComposition,
+  planFit,
   ingestImage,
   type RenderOptions,
   type ScaleMode,
@@ -60,6 +62,7 @@ export function ImageUploader({
   assets,
   settings,
   outputFor,
+  onPreview,
   busy,
   onAdd,
   onUpdate,
@@ -69,6 +72,7 @@ export function ImageUploader({
   assets: Asset[];
   settings: GlobalSettings;
   outputFor: (assetId: string, presetId: string) => OutputState | undefined;
+  onPreview: (assetId: string, presetId: string) => void;
   busy: boolean;
   onAdd: (assets: Asset[]) => void;
   onUpdate: (id: string, patch: Partial<Asset>) => void;
@@ -152,7 +156,7 @@ export function ImageUploader({
         <SetDropzone
           device="phone"
           title="Mobile set"
-          subtitle="iPhone 6.9″ · Play phone"
+          subtitle="iPhone 6.9″ + 6.3″ · Play phone"
           count={counts.phone}
           busy={busy}
           onFiles={(f) => ingest(f, "phone")}
@@ -204,6 +208,7 @@ export function ImageUploader({
             asset={a}
             settings={settings}
             outputFor={outputFor}
+            onPreview={onPreview}
             busy={busy}
             onUpdate={(p) => onUpdate(a.id, p)}
             onRemove={() => onRemove(a.id)}
@@ -220,6 +225,7 @@ function AssetCard({
   asset: a,
   settings,
   outputFor,
+  onPreview,
   busy,
   onUpdate,
   onRemove,
@@ -227,6 +233,7 @@ function AssetCard({
   asset: Asset;
   settings: GlobalSettings;
   outputFor: (assetId: string, presetId: string) => OutputState | undefined;
+  onPreview: (assetId: string, presetId: string) => void;
   busy: boolean;
   onUpdate: (patch: Partial<Asset>) => void;
   onRemove: () => void;
@@ -392,6 +399,7 @@ function AssetCard({
                 opts={opts}
                 settings={settings}
                 output={outputFor(a.id, preset.id)}
+                onPreview={() => onPreview(a.id, preset.id)}
               />
             ))
           )}
@@ -413,6 +421,7 @@ function PreviewTile({
   opts,
   settings,
   output,
+  onPreview,
 }: {
   asset: Asset;
   preset: Preset;
@@ -420,6 +429,7 @@ function PreviewTile({
   opts: RenderOptions;
   settings: GlobalSettings;
   output?: OutputState;
+  onPreview: () => void;
 }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const [open, setOpen] = useState(false);
@@ -454,17 +464,36 @@ function PreviewTile({
     bytes: output?.status === "done" ? output.bytes : undefined,
   });
   const ok = compliance.ok && output?.status !== "error";
-  const factor = scaleFactor({ w: asset.width, h: asset.height }, size, opts.mode);
+  const fit = opts.mode === "fit" ? planFit(asset.width, asset.height, size.w, size.h, opts.padding) : null;
+  // When Fit snaps (fills edge to edge) it scales like Fill.
+  const factor = scaleFactor({ w: asset.width, h: asset.height }, size, fit && fit.strategy !== "letterbox" ? "fill" : opts.mode);
+  const fitNote = !fit
+    ? null
+    : fit.strategy === "exact"
+      ? "fills exactly"
+      : fit.strategy === "snap"
+        ? `edge trim ${(fit.trim * 100).toFixed(2)}% (≈${Math.round(fit.trim * (fit.axis === "x" ? asset.width : asset.height))} px)`
+        : fit.bars > 0
+          ? `bars ${fit.bars} px`
+          : null;
 
   return (
     <figure className="shrink-0 space-y-1.5" style={{ width: Math.max(dw, 132) }}>
       <div className="relative flex items-center justify-center" style={{ height: PREVIEW_H }}>
-        <canvas
-          ref={ref}
-          style={{ width: dw, height: dh }}
-          className="rounded-md border shadow-sm"
-          aria-label={`${preset.label} preview`}
-        />
+        <button
+          type="button"
+          onClick={onPreview}
+          className="group/tile relative cursor-zoom-in rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          aria-label={`Open ${preset.label} ${size.w}×${size.h} preview`}
+          title="Open full-size preview"
+        >
+          <canvas ref={ref} style={{ width: dw, height: dh }} className="block rounded-md border shadow-sm" />
+          <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-md bg-black/0 opacity-0 transition group-hover/tile:bg-black/35 group-hover/tile:opacity-100 group-focus-visible/tile:opacity-100">
+            <span className="flex items-center gap-1 rounded-full bg-background/90 px-2.5 py-1 text-[11px] font-medium shadow">
+              <Maximize2 className="size-3" /> Preview
+            </span>
+          </span>
+        </button>
         {output?.status === "rendering" && (
           <div className="absolute inset-0 flex items-center justify-center rounded-md bg-background/60 backdrop-blur-[1px]">
             <Loader2 className="size-5 animate-spin" />
@@ -522,6 +551,20 @@ function PreviewTile({
         >
           {factor > 1.005 ? "↑" : factor < 0.995 ? "↓" : "="} {factor.toFixed(2)}× {factor > 1.25 && "· may look soft"}
         </div>
+        {fitNote && (
+          <div
+            className="font-mono text-[11px] text-muted-foreground"
+            title={
+              fit?.strategy === "snap"
+                ? "Shapes differ by under 1%, so Fit fills the frame and trims this much evenly instead of adding hairline bars"
+                : fit?.strategy === "letterbox"
+                  ? "The whole image is kept; this much space is filled with the background"
+                  : undefined
+            }
+          >
+            {fitNote}
+          </div>
+        )}
         {output?.status === "done" && (
           <div className="flex items-center justify-between text-muted-foreground">
             <span>
@@ -723,7 +766,7 @@ function SetDropzone({
       {...getRootProps()}
       data-set={device}
       className={cn(
-        "group relative flex cursor-pointer items-center gap-4 overflow-hidden rounded-2xl border border-dashed p-5 transition-all",
+        "group relative flex cursor-pointer items-center gap-3.5 overflow-hidden rounded-2xl border border-dashed p-4 transition-all",
         "bg-gradient-to-br from-card to-muted/40 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/5",
         isDragActive ? "border-primary ring-4 ring-primary/15" : "border-border hover:border-primary/40",
         busy && "pointer-events-none opacity-60",
@@ -732,7 +775,7 @@ function SetDropzone({
       <input {...getInputProps({ accept: ACCEPT_ATTR })} aria-label={`Upload ${title}`} />
       <div
         className={cn(
-          "flex size-14 shrink-0 items-center justify-center rounded-xl text-white shadow-md",
+          "flex size-12 shrink-0 items-center justify-center rounded-xl text-white shadow-md",
           {
             phone: "bg-gradient-to-br from-violet-500 to-indigo-600",
             tablet: "bg-gradient-to-br from-sky-500 to-cyan-600",
@@ -743,7 +786,7 @@ function SetDropzone({
         {isDragActive ? <ImagePlus className="size-6" /> : <Icon className="size-6" />}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="flex items-center gap-2 font-semibold">
+        <p className="flex items-center gap-2 font-semibold whitespace-nowrap">
           {title}
           {count > 0 && (
             <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">{count}</span>

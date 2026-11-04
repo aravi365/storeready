@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { FakeCanvas, draws, installFakeCanvas, src, type FakeCtx } from "./fakeCanvas";
-import { drawComposition, type RenderOptions } from "@/utils/canvasResizer";
+import { FIT_SNAP_TOLERANCE, drawComposition, planFit, type RenderOptions } from "@/utils/canvasResizer";
+import { PRESETS } from "@/utils/presets";
 
 beforeAll(installFakeCanvas);
 
@@ -113,5 +114,86 @@ describe("high-quality downscale", () => {
   it("draws directly when the reduction is small", () => {
     const { ctx, source } = run(1320, 2868, 1080, 1920, { mode: "stretch" });
     expect(last(ctx)[0]).toBe(source);
+  });
+});
+
+describe("planFit", () => {
+  it("same shape → exact, nothing added or trimmed", () => {
+    expect(planFit(2640, 5736, 1320, 2868)).toEqual({ strategy: "exact", trim: 0, bars: 0, axis: null });
+    expect(planFit(1320, 2868, 1320, 2868).strategy).toBe("exact");
+  });
+
+  it.each([
+    ["6.7 → 6.9", 1290, 2796, 1320, 2868],
+    ["6.1 → 6.3", 1179, 2556, 1206, 2622],
+    ["6.9 → 6.3", 1320, 2868, 1206, 2622],
+    ["12.9 → 13 iPad", 2048, 2732, 2064, 2752],
+  ])("%s snaps with a sub-1%% trim", (_, sw, sh, tw, th) => {
+    const p = planFit(sw, sh, tw, th);
+    expect(p.strategy).toBe("snap");
+    expect(p.trim).toBeGreaterThan(0);
+    expect(p.trim).toBeLessThanOrEqual(FIT_SNAP_TOLERANCE);
+    expect(p.bars).toBe(0);
+  });
+
+  it("reports the axis that gets trimmed", () => {
+    // 1290×2796 → 1320×2868: height scales more, so cover trims width.
+    expect(planFit(1290, 2796, 1320, 2868).axis).toBe("x");
+    // Taller-than-target source: cover trims height.
+    expect(planFit(1000, 2010, 1000, 2000).axis).toBe("y");
+  });
+
+  it("real shape differences keep the whole image and add bars", () => {
+    const p = planFit(1320, 2868, 1080, 1920); // tall iPhone → 9:16 Play
+    expect(p.strategy).toBe("letterbox");
+    expect(p.axis).toBe("x");
+    expect(p.bars).toBe(1080 - Math.round(1320 * (1920 / 2868)));
+    expect(planFit(1398, 2034, 2007, 2853).strategy).toBe("letterbox"); // Duo outer → inner (2.3%)
+  });
+
+  it("just over the tolerance letterboxes, just under snaps", () => {
+    expect(planFit(1000, 1000 * (1 + FIT_SNAP_TOLERANCE * 0.9), 1000, 1000).strategy).toBe("snap");
+    expect(planFit(1000, 1000 * (1 + FIT_SNAP_TOLERANCE * 1.2), 1000, 1000).strategy).toBe("letterbox");
+  });
+
+  it("never trims when padding is set (the user asked for space)", () => {
+    const p = planFit(1290, 2796, 1320, 2868, 0.05);
+    expect(p.strategy).toBe("letterbox");
+    expect(p.bars).toBeGreaterThan(0);
+  });
+});
+
+describe("fit never adds unnecessary space or crops", () => {
+  const apple = PRESETS.filter((p) => p.store === "app_store" && p.rules.kind === "exact");
+
+  it("every pair of accepted Apple sizes in the same device family fills the frame edge to edge", () => {
+    for (const target of apple) {
+      for (const source of apple.filter((p) => p.deviceClass === target.deviceClass && p.id !== target.id)) {
+        if (planFit(source.portrait.w, source.portrait.h, target.portrait.w, target.portrait.h).strategy === "letterbox") continue;
+        const { ctx } = run(source.portrait.w, source.portrait.h, target.portrait.w, target.portrait.h, { mode: "fit", backdrop: "blur" });
+        const [, , , , , dx, dy, dw, dh] = last(ctx);
+        expect([dx, dy, dw, dh]).toEqual([0, 0, target.portrait.w, target.portrait.h]);
+        expect(draws(ctx)).toHaveLength(1); // no blurred backdrop drawn behind a full-bleed image
+      }
+    }
+  });
+
+  it("snap trims evenly from both edges and stays inside the source", () => {
+    const [, sx, sy, sw, sh] = last(run(1290, 2796, 1320, 2868, { mode: "fit" }).ctx);
+    expect(sy).toBe(0);
+    expect(sh).toBe(2796);
+    expect(sx).toBeCloseTo((1290 - sw) / 2);
+    expect(1290 - sw).toBeLessThan(1290 * FIT_SNAP_TOLERANCE); // ≈3 px total
+  });
+
+  it("an exact-shape resize draws the whole source with no trim", () => {
+    const [, sx, sy, sw, sh, dx, dy, dw, dh] = last(run(2640, 5736, 1320, 2868, { mode: "fit" }).ctx);
+    expect([sx, sy, sw, sh]).toEqual([0, 0, 2640, 5736]);
+    expect([dx, dy, dw, dh]).toEqual([0, 0, 1320, 2868]);
+  });
+
+  it("letterbox keeps the whole source (nothing cropped)", () => {
+    const [, sx, sy, sw, sh] = last(run(1320, 2868, 1080, 1920, { mode: "fit" }).ctx);
+    expect([sx, sy, sw, sh]).toEqual([0, 0, 1320, 2868]);
   });
 });

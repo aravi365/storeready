@@ -29,6 +29,7 @@ describe("preset table", () => {
     expect(folders).toEqual(
       [
         "app_store/ipad_13",
+        "app_store/iphone_6.3",
         "app_store/iphone_6.9",
         "app_store/iphone_duo_inner",
         "app_store/iphone_duo_outer",
@@ -39,8 +40,13 @@ describe("preset table", () => {
     );
   });
 
+  it("exports Apple's required medium Dynamic Island iPhone size by default", () => {
+    expect(PRESET_BY_ID.as_iphone_63.defaultEnabled).toBe(true);
+  });
+
   it("uses the verified 2026 sizes", () => {
     expect(PRESET_BY_ID.as_iphone_69.portrait).toEqual({ w: 1320, h: 2868 });
+    expect(PRESET_BY_ID.as_iphone_63.portrait).toEqual({ w: 1206, h: 2622 });
     expect(PRESET_BY_ID.as_iphone_67.portrait).toEqual({ w: 1290, h: 2796 });
     expect(PRESET_BY_ID.as_ipad_13.portrait).toEqual({ w: 2064, h: 2752 });
     expect(PRESET_BY_ID.as_ipad_129.portrait).toEqual({ w: 2048, h: 2732 });
@@ -86,6 +92,10 @@ describe("checkDimensions rules", () => {
     expect(passes("as_iphone_69", 1260, 2736)).toBe(true);
     expect(passes("as_iphone_69", 1320, 2867)).toBe(false);
     expect(passes("as_iphone_69", 1080, 1920)).toBe(false);
+    expect(passes("as_iphone_63", 1206, 2622)).toBe(true);
+    expect(passes("as_iphone_63", 1179, 2556)).toBe(true);
+    expect(passes("as_iphone_63", 2622, 1206)).toBe(true);
+    expect(passes("as_iphone_63", 1320, 2868)).toBe(false);
     expect(passes("as_ipad_13", 2048, 2732)).toBe(true);
     expect(passes("as_ipad_13", 2064, 2751)).toBe(false);
   });
