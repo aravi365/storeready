@@ -21,7 +21,7 @@ describe("FONT_SCALE_BOOT (runs before paint)", () => {
     new Function("localStorage", "document", FONT_SCALE_BOOT)(localStorage, { documentElement: html });
     return html.style.fontSize;
   };
-  it("applies a saved step", () => expect(run("1.25")).toBe("125%"));
+  it("applies a saved step on top of the 17px base", () => expect(run("1.25")).toBe(`${106.25 * 1.25}%`));
   it("leaves 100% and invalid values alone", () => {
     expect(run("1")).toBe("");
     expect(run("9")).toBe("");

@@ -126,6 +126,8 @@
   }
   html {
     @apply font-sans;
+    /* 17px base (keep in sync with BASE_FONT_PERCENT in lib/fontScale.ts) */
+    font-size: 106.25%;
   }
 }
 @layer base {

@@ -28,7 +28,7 @@ export function AppShell() {
             </div>
             <div className="hidden leading-tight sm:block">
               <p className="font-semibold tracking-tight">StoreShot</p>
-              <p className="text-[11px] text-muted-foreground">Store assets, sized and checked</p>
+              <p className="text-xs text-muted-foreground">Store assets, sized and checked</p>
             </div>
           </div>
 
@@ -57,7 +57,7 @@ export function AppShell() {
               href="https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications"
               target="_blank"
               rel="noreferrer"
-              className="hidden items-center gap-1 rounded-full border bg-card px-2.5 py-1 text-[11px] text-muted-foreground hover:text-foreground md:flex"
+              className="hidden items-center gap-1 rounded-full border bg-card px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground md:flex"
             >
               <ShieldCheck className="size-3 text-emerald-500" /> Specs checked Nov 2026
             </a>

@@ -195,7 +195,7 @@ export function IconGenerator() {
               {s.framework === "react-native" && (
                 <Input value={s.rnAppName} onChange={(e) => set("rnAppName", e.target.value)} placeholder="iOS target name" className="h-8 text-xs" />
               )}
-              <p className="font-mono text-[11px] leading-relaxed text-muted-foreground">
+              <p className="font-mono text-xs leading-relaxed text-muted-foreground">
                 {roots.ios}/
                 <br />
                 {roots.android}/

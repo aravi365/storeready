@@ -90,7 +90,7 @@ export function OutputsTable({
                     >
                       {path.split("/").pop()}
                     </button>
-                    <div className="truncate font-mono text-[11px] text-muted-foreground">{folder}/</div>
+                    <div className="truncate font-mono text-xs text-muted-foreground">{folder}/</div>
                   </td>
                   <td className="max-w-[140px] truncate px-2 py-2 text-muted-foreground" title={a?.name}>
                     {a?.name}

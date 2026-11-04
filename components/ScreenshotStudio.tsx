@@ -9,6 +9,8 @@ import { Progress } from "@/components/ui/progress";
 import { ImageUploader } from "@/components/ImageUploader";
 import { OutputsTable } from "@/components/OutputsTable";
 import { OutputLightbox, type LightboxItem } from "@/components/OutputLightbox";
+import { ReadinessPanel } from "@/components/ReadinessPanel";
+import { checkReadiness } from "@/utils/readiness";
 import { PresetSelector } from "@/components/PresetSelector";
 import {
   DEFAULT_SETTINGS,
@@ -227,8 +229,11 @@ export function ScreenshotStudio() {
 
       setRun((s) => ({ ...s, kind: "export", phase: "zipping", done: snapshot.length, total: snapshot.length, failed }));
       entries.sort((a, b) => a.path.localeCompare(b.path));
-      const { bytes, fileName } = await exportZip(entries, (pr) =>
-        setRun((s) => ({ ...s, zipPercent: pr.phase === "compressing" ? pr.percent : 0 })),
+      const { bytes, fileName } = await exportZip(
+        entries,
+        (pr) => setRun((s) => ({ ...s, zipPercent: pr.phase === "compressing" ? pr.percent : 0 })),
+        undefined,
+        { readiness: readinessRef.current },
       );
       const compliant = entries.filter((e) => e.compliance.ok).length;
       setRun((s) => ({
@@ -287,6 +292,23 @@ export function ScreenshotStudio() {
     [jobById, outputs, validOutput],
   );
   const outputForJob = useCallback((j: Job) => validOutput(j, outputs), [outputs, validOutput]);
+
+  // ───────── Store-readiness checklist ─────────
+  const readiness = useMemo(() => {
+    const hasTabletSources = Object.fromEntries(
+      settings.locales.size
+        ? [...settings.locales].map((l) => [
+            l,
+            assets.some((a) => a.status === "ready" && a.locale === l && a.deviceClass === "tablet" && a.category === "screenshot"),
+          ])
+        : [],
+    );
+    return checkReadiness(jobs, (j) => validOutput(j, outputs), { hasTabletSources });
+  }, [jobs, outputs, assets, settings.locales, validOutput]);
+  const readinessRef = useRef(readiness);
+  useEffect(() => {
+    readinessRef.current = readiness;
+  }, [readiness]);
 
   // ───────── Full-size preview popup ─────────
   const [previewId, setPreviewId] = useState<string | null>(null);
@@ -374,6 +396,10 @@ export function ScreenshotStudio() {
           autoGenerate={settings.autoGenerate}
           onExport={startExport}
           onCancel={() => abortRef.current?.abort()}
+        />
+        <ReadinessPanel
+          report={readiness}
+          onEnablePreset={(id) => setSettings((s) => ({ ...s, presets: new Set([...s.presets, id]) }))}
         />
         <PresetSelector settings={settings} onChange={setSettings} />
       </aside>

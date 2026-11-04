@@ -29,7 +29,12 @@ export interface ZipProgress {
   currentFile?: string;
 }
 
-export async function buildZip(entries: ZipEntry[], onProgress?: (p: ZipProgress) => void): Promise<Blob> {
+export async function buildZip(
+  entries: ZipEntry[],
+  onProgress?: (p: ZipProgress) => void,
+  /** Extra manifest sections, e.g. the store-readiness report */
+  meta: Record<string, unknown> = {},
+): Promise<Blob> {
   if (!entries.length) throw new Error("Nothing to export — enable at least one preset and locale.");
   const zip = new JSZip();
 
@@ -48,6 +53,7 @@ export async function buildZip(entries: ZipEntry[], onProgress?: (p: ZipProgress
       compliant: entries.filter((e) => e.compliance.ok).length,
     },
     files: entries.map(({ blob, ...rest }) => ({ ...rest, bytes: blob.size, type: blob.type })),
+    ...meta,
   };
   zip.file("app-store-assets/manifest.json", JSON.stringify(manifest, null, 2));
 
@@ -61,8 +67,9 @@ export async function exportZip(
   entries: ZipEntry[],
   onProgress?: (p: ZipProgress) => void,
   fileName = `app-store-assets-${new Date().toISOString().slice(0, 10)}.zip`,
+  meta: Record<string, unknown> = {},
 ): Promise<{ bytes: number; fileName: string }> {
-  const blob = await buildZip(entries, onProgress);
+  const blob = await buildZip(entries, onProgress, meta);
   saveAs(blob, fileName);
   return { bytes: blob.size, fileName };
 }

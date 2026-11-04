@@ -49,7 +49,7 @@ import {
   type GlobalSettings,
   type OutputState,
 } from "@/utils/jobs";
-import { STORE_LABEL, evaluate, type DeviceClass, type Preset, type Size } from "@/utils/presets";
+import { PRESETS, STORE_LABEL, evaluate, type DeviceClass, type Preset, type Size } from "@/utils/presets";
 import { detectAsset, scaleFactor, type Detection } from "@/utils/detect";
 import { partitionUploads, relPathOf } from "@/utils/uploads";
 
@@ -191,6 +191,8 @@ export function ImageUploader({
         leave your browser
       </p>
 
+      {assets.length === 0 && <EmptyState settings={settings} />}
+
       {assets.length > 0 && (
         <div className="flex items-center justify-between">
           <div className="flex flex-wrap gap-1.5 text-xs">
@@ -277,7 +279,7 @@ function AssetCard({
               {a.name}
             </p>
             {a.relPath && a.relPath !== a.name && (
-              <p className="flex items-center gap-1 truncate font-mono text-[11px] text-muted-foreground">
+              <p className="flex items-center gap-1 truncate font-mono text-xs text-muted-foreground">
                 <FolderOpen className="size-3 shrink-0" /> {a.relPath.split("/").slice(0, -1).join("/")}/
               </p>
             )}
@@ -528,7 +530,7 @@ function PreviewTile({
         >
           <canvas ref={ref} style={{ width: dw, height: dh }} className="block rounded-md border shadow-sm" />
           <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-md bg-black/0 opacity-0 transition group-hover/tile:bg-black/35 group-hover/tile:opacity-100 group-focus-visible/tile:opacity-100">
-            <span className="flex items-center gap-1 rounded-full bg-background/90 px-2.5 py-1 text-[11px] font-medium shadow">
+            <span className="flex items-center gap-1 rounded-full bg-background/90 px-2.5 py-1 text-xs font-medium shadow">
               <Maximize2 className="size-3" /> Preview
             </span>
           </span>
@@ -566,7 +568,7 @@ function PreviewTile({
             onClick={() => setOpen((o) => !o)}
             aria-expanded={open}
             className={cn(
-              "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[11px] font-medium",
+              "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs font-medium",
               ok
                 ? "bg-emerald-500/12 text-emerald-700 dark:text-emerald-400"
                 : "bg-destructive/10 text-destructive",
@@ -595,7 +597,7 @@ function PreviewTile({
         )}
         <div
           className={cn(
-            "font-mono text-[11px] tabular-nums",
+            "font-mono text-xs tabular-nums",
             factor > 1.25 ? "text-amber-700 dark:text-amber-400" : "text-muted-foreground",
           )}
           title={factor > 1 ? "Source is upscaled to reach this size" : "Source is downscaled"}
@@ -604,7 +606,7 @@ function PreviewTile({
         </div>
         {fitNote && (
           <div
-            className="font-mono text-[11px] text-muted-foreground"
+            className="font-mono text-xs text-muted-foreground"
             title={
               fit?.strategy === "snap"
                 ? "Shapes differ by under 1%, so Fit fills the frame and trims this much evenly instead of adding hairline bars"
@@ -840,7 +842,7 @@ function SetDropzone({
         <p className="flex items-center gap-2 font-semibold whitespace-nowrap">
           {title}
           {count > 0 && (
-            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">{count}</span>
+            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">{count}</span>
           )}
         </p>
         <p className="text-xs text-muted-foreground">{subtitle}</p>
@@ -897,4 +899,68 @@ function FolderImportZone({ busy, onFiles }: { busy: boolean; onFiles: (files: F
 
 function Chip({ children }: { children: React.ReactNode }) {
   return <span className="rounded-full border bg-card px-2.5 py-0.5 text-muted-foreground">{children}</span>;
+}
+
+// ───────────────────────── Empty state ─────────────────────────
+
+/** Before any upload: what you'll get, from the presets currently enabled. */
+function EmptyState({ settings }: { settings: GlobalSettings }) {
+  const enabled = PRESETS.filter((p) => settings.stores.has(p.store) && settings.presets.has(p.id));
+  const steps = [
+    { n: 1, title: "Drop your sets", text: "Phone, iPad and iPhone Duo screenshots, as files or whole folders." },
+    { n: 2, title: "Check the previews", text: "Each image is detected and resized; every file gets a compliance badge." },
+    { n: 3, title: "Download one ZIP", text: "Sorted by store, language and device, ready to upload." },
+  ];
+  return (
+    <Card className="gap-0 p-0">
+      <div className="grid gap-px overflow-hidden rounded-xl bg-border sm:grid-cols-3">
+        {steps.map((st) => (
+          <div key={st.n} className="bg-card p-4">
+            <span className="flex size-6 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">{st.n}</span>
+            <p className="mt-2 text-sm font-semibold">{st.title}</p>
+            <p className="text-xs text-muted-foreground">{st.text}</p>
+          </div>
+        ))}
+      </div>
+      <div className="space-y-3 p-4">
+        <p className="text-sm font-semibold">What you&apos;ll get for each screenshot</p>
+        {enabled.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No sizes are enabled. Turn some on in Export presets.</p>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2">
+            {(["app_store", "play_store"] as const).map((store) => {
+              const list = enabled.filter((p) => p.store === store);
+              if (!list.length) return null;
+              return (
+                <div key={store}>
+                  <p className="mb-1.5 text-xs font-medium text-muted-foreground uppercase">{STORE_LABEL[store]}</p>
+                  <ul className="space-y-1">
+                    {list.map((p) => (
+                      <li key={p.id} className="flex items-center justify-between gap-3 rounded-md bg-muted/50 px-2.5 py-1.5 text-sm">
+                        <span className="flex items-center gap-2">
+                          {p.category === "feature_graphic" ? (
+                            <ImagePlus className="size-3.5 text-muted-foreground" />
+                          ) : p.deviceClass === "tablet" ? (
+                            <Tablet className="size-3.5 text-muted-foreground" />
+                          ) : p.deviceClass === "foldable" ? (
+                            <BookOpen className="size-3.5 text-muted-foreground" />
+                          ) : (
+                            <Smartphone className="size-3.5 text-muted-foreground" />
+                          )}
+                          {p.label}
+                        </span>
+                        <span className="font-mono text-xs text-muted-foreground tabular-nums">
+                          {p.portrait.w}×{p.portrait.h}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </Card>
+  );
 }

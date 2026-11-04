@@ -2,7 +2,7 @@
 
 import { useCallback, useSyncExternalStore } from "react";
 import { cn } from "@/lib/utils";
-import { FONT_SCALES, FONT_SCALE_KEY, parseFontScale } from "@/lib/fontScale";
+import { FONT_SCALES, FONT_SCALE_KEY, parseFontScale, rootFontSize } from "@/lib/fontScale";
 
 const EVENT = "storeshot:font-scale";
 
@@ -15,7 +15,7 @@ function readScale(): number {
 }
 
 function applyFontScale(scale: number) {
-  document.documentElement.style.fontSize = scale === 1 ? "" : `${scale * 100}%`;
+  document.documentElement.style.fontSize = rootFontSize(scale);
 }
 
 const subscribe = (cb: () => void) => {
@@ -68,7 +68,7 @@ export function FontSizeControl() {
       </button>
       <button
         type="button"
-        className={cn(btn, "min-w-11 text-[11px] tabular-nums", scale !== 1 && "text-foreground")}
+        className={cn(btn, "min-w-11 text-xs tabular-nums", scale !== 1 && "text-foreground")}
         onClick={() => setScale(1)}
         aria-label={`Text size ${Math.round(scale * 100)}%. Reset to 100%`}
         title="Reset text size"
