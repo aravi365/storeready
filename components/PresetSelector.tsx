@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Segmented } from "@/components/Segmented";
 import { cn } from "@/lib/utils";
 import type { GlobalSettings } from "@/utils/jobs";
-import { LOCALE_LABEL, PRESETS, STORE_LABEL, type Locale, type Store } from "@/utils/presets";
+import { LOCALE_LABEL, PLAY_TABLET_IDS, PRESETS, STORE_LABEL, setPlayTablets, type Locale, type Store } from "@/utils/presets";
 import type { ScaleMode } from "@/utils/canvasResizer";
 
 const STORE_ICON: Record<Store, React.ReactNode> = {
@@ -43,6 +43,7 @@ export function PresetSelector({
 }) {
   const set = <K extends keyof GlobalSettings>(k: K, v: GlobalSettings[K]) => onChange({ ...settings, [k]: v });
   const hexValid = /^#[0-9a-f]{6}$/i.test(settings.matte);
+  const playTabletsOn = PLAY_TABLET_IDS.some((id) => settings.presets.has(id));
 
   return (
     <Card>
@@ -88,8 +89,31 @@ export function PresetSelector({
                   onCheckedChange={(v) => set("stores", toggle(settings.stores, store, v))}
                 />
               </div>
+              {store === "play_store" && (
+                <div
+                  className={cn(
+                    "space-y-1 rounded-lg border bg-muted/30 px-3 py-2",
+                    !storeOn && "pointer-events-none opacity-40",
+                  )}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <Label htmlFor="play-tablets" className="text-sm font-medium">
+                      Android tablet screenshots
+                    </Label>
+                    <Switch
+                      id="play-tablets"
+                      checked={playTabletsOn}
+                      onCheckedChange={(v) => set("presets", setPlayTablets(settings.presets, v))}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Optional in Play Console: phone screenshots alone are enough to publish. Keep this on if your app
+                    supports tablets, so large-screen devices show tablet screenshots.
+                  </p>
+                </div>
+              )}
               <ul className={cn("space-y-1", !storeOn && "pointer-events-none opacity-40")}>
-                {PRESETS.filter((p) => p.store === store).map((p) => {
+                {PRESETS.filter((p) => p.store === store && (store !== "play_store" || playTabletsOn || p.deviceClass !== "tablet")).map((p) => {
                   const id = `preset-${p.id}`;
                   const s = p.portrait;
                   return (

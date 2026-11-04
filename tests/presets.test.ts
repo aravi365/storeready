@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   PLAY_MAX_BYTES,
   PRESETS,
+  PLAY_TABLET_IDS,
   PRESET_BY_ID,
+  setPlayTablets,
   checkDimensions,
   evaluate,
   presetsFor,
@@ -185,5 +187,31 @@ describe("presetsFor", () => {
     expect(presetsFor("phone", "screenshot", all, new Set<Store>(["app_store"])).every((p) => p.store === "app_store")).toBe(true);
     expect(presetsFor("phone", "feature_graphic", all, new Set<Store>(["app_store"]))).toEqual([]);
     expect(presetsFor("phone", "screenshot", new Set(["gp_phone"]), stores).map((p) => p.id)).toEqual(["gp_phone"]);
+  });
+});
+
+describe("Android tablet switch", () => {
+  const defaults = new Set(PRESETS.filter((p) => p.defaultEnabled).map((p) => p.id));
+
+  it("covers every Play tablet preset and nothing else", () => {
+    expect(PLAY_TABLET_IDS.sort()).toEqual(["gp_tablet_10", "gp_tablet_10_legacy", "gp_tablet_7", "gp_tablet_7_legacy"].sort());
+  });
+
+  it("off removes all Play tablet sizes and keeps iPad, phones and the feature graphic", () => {
+    const off = setPlayTablets(new Set([...defaults, "gp_tablet_7", "gp_tablet_10_legacy"]), false);
+    expect(PLAY_TABLET_IDS.some((id) => off.has(id))).toBe(false);
+    for (const id of ["as_ipad_13", "as_iphone_69", "as_iphone_63", "gp_phone", "gp_feature"]) expect(off.has(id)).toBe(true);
+    expect(presetsFor("tablet", "screenshot", off, stores).map((p) => p.id)).toEqual(["as_ipad_13"]);
+  });
+
+  it("on restores the default 10-inch 9:16 size", () => {
+    const on = setPlayTablets(setPlayTablets(defaults, false), true);
+    expect([...on].sort()).toEqual([...defaults].sort());
+  });
+
+  it("does not mutate the input set", () => {
+    const input = new Set(defaults);
+    setPlayTablets(input, false);
+    expect(input).toEqual(defaults);
   });
 });

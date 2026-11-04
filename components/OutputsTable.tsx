@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CheckCircle2, Download, Eye, Loader2, Rows3, XCircle } from "lucide-react";
+import { CheckCircle2, Download, Eye, Loader2, Rows3, Trash2, XCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Segmented } from "@/components/Segmented";
 import { cn } from "@/lib/utils";
@@ -18,11 +18,13 @@ export function OutputsTable({
   assets,
   outputFor,
   onPreview,
+  onRemove,
 }: {
   jobs: Job[];
   assets: Asset[];
   outputFor: (job: Job) => OutputState | undefined;
   onPreview: (jobId: string) => void;
+  onRemove: (job: Job) => void;
 }) {
   const [filter, setFilter] = useState<Filter>("all");
   const assetMap = useMemo(() => new Map(assets.map((a) => [a.id, a])), [assets]);
@@ -138,6 +140,15 @@ export function OutputsTable({
                       aria-label={`Preview ${path.split("/").pop()}`}
                     >
                       <Eye className="size-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onRemove(j)}
+                      className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                      aria-label={`Remove ${path.split("/").pop()} from the export`}
+                      title="Remove this output for this image"
+                    >
+                      <Trash2 className="size-3.5" />
                     </button>
                     {out?.url && (
                       <a

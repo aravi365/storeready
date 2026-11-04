@@ -16,6 +16,8 @@ import {
   Smartphone,
   BookOpen,
   Maximize2,
+  RotateCcw,
+  X,
   Tablet,
   Trash2,
   Upload,
@@ -36,6 +38,9 @@ import {
   type ScaleMode,
 } from "@/utils/canvasResizer";
 import {
+  excludePreset,
+  excludedTargetsFor,
+  restorePreset,
   inferMetadata,
   renderOptionsFor,
   resolveOrientation,
@@ -50,6 +55,8 @@ import { partitionUploads, relPathOf } from "@/utils/uploads";
 
 const fmtBytes = (n: number) =>
   n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`;
+
+const STORE_SHORT = { app_store: "iOS", play_store: "Play" } as const;
 
 const SET_NAME: Record<DeviceClass, string> = { phone: "Mobile", tablet: "iPad / Tablet", foldable: "iPhone Duo" };
 
@@ -241,6 +248,15 @@ function AssetCard({
   const ready = a.status === "ready";
   const isFeature = a.category === "feature_graphic";
   const targets = ready ? targetsFor(a, settings) : [];
+  const removed = ready ? excludedTargetsFor(a, settings) : [];
+  const removeOutput = (preset: Preset) => {
+    const before = a.excluded;
+    onUpdate({ excluded: excludePreset(a, preset.id) });
+    toast(`Removed ${STORE_SHORT[preset.store]} ${preset.label} for ${a.name}`, {
+      description: "It won't be in the ZIP. To skip this size for every image, untick it in Export presets.",
+      action: { label: "Undo", onClick: () => onUpdate({ excluded: before }) },
+    });
+  };
   const opts = renderOptionsFor(a, settings);
   const localeOff = !settings.locales.has(a.locale);
   const lock = busy || !ready;
@@ -386,8 +402,9 @@ function AssetCard({
           <div className="w-px shrink-0 bg-border" />
           {targets.length === 0 ? (
             <p className="self-center text-sm text-muted-foreground">
-              No enabled presets match this {isFeature ? "feature graphic" : `${SET_NAME[a.deviceClass]} screenshot`}. Enable one
-              in Export presets.
+              {removed.length
+                ? "All outputs for this image are removed. Restore one below."
+                : <>No enabled presets match this {isFeature ? "feature graphic" : `${SET_NAME[a.deviceClass]} screenshot`}. Enable one in Export presets.</>}
             </p>
           ) : (
             targets.map(({ preset, size }) => (
@@ -400,9 +417,28 @@ function AssetCard({
                 settings={settings}
                 output={outputFor(a.id, preset.id)}
                 onPreview={() => onPreview(a.id, preset.id)}
+                onRemove={lock ? undefined : () => removeOutput(preset)}
               />
             ))
           )}
+        </div>
+      )}
+
+      {ready && removed.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 border-t px-4 py-2.5 text-xs">
+          <span className="text-muted-foreground">Removed for this image:</span>
+          {removed.map(({ preset, size }) => (
+            <button
+              key={preset.id}
+              type="button"
+              disabled={lock}
+              onClick={() => onUpdate({ excluded: restorePreset(a, preset.id) })}
+              className="inline-flex items-center gap-1 rounded-full border border-dashed px-2.5 py-0.5 text-muted-foreground hover:border-primary/50 hover:text-foreground disabled:opacity-50"
+              title={`Restore ${STORE_SHORT[preset.store]} ${preset.label} ${size.w}×${size.h}`}
+            >
+              <RotateCcw className="size-3" /> {STORE_SHORT[preset.store]} · {preset.label}
+            </button>
+          ))}
         </div>
       )}
     </Card>
@@ -422,6 +458,7 @@ function PreviewTile({
   settings,
   output,
   onPreview,
+  onRemove,
 }: {
   asset: Asset;
   preset: Preset;
@@ -430,6 +467,7 @@ function PreviewTile({
   settings: GlobalSettings;
   output?: OutputState;
   onPreview: () => void;
+  onRemove?: () => void;
 }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const [open, setOpen] = useState(false);
@@ -480,6 +518,7 @@ function PreviewTile({
   return (
     <figure className="shrink-0 space-y-1.5" style={{ width: Math.max(dw, 132) }}>
       <div className="relative flex items-center justify-center" style={{ height: PREVIEW_H }}>
+        <div className="relative">
         <button
           type="button"
           onClick={onPreview}
@@ -494,6 +533,18 @@ function PreviewTile({
             </span>
           </span>
         </button>
+        {onRemove && (
+          <button
+            type="button"
+            onClick={onRemove}
+            aria-label={`Remove ${preset.label} ${size.w}×${size.h} for this image`}
+            title="Remove this output for this image"
+            className="absolute -top-2 -right-2 z-10 flex size-6 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-sm transition hover:border-destructive/50 hover:text-destructive focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <X className="size-3.5" />
+          </button>
+        )}
+        </div>
         {output?.status === "rendering" && (
           <div className="absolute inset-0 flex items-center justify-center rounded-md bg-background/60 backdrop-blur-[1px]">
             <Loader2 className="size-5 animate-spin" />

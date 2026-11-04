@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_SETTINGS,
   buildJobs,
+  excludePreset,
+  excludedTargetsFor,
+  restorePreset,
   inferMetadata,
   jobSig,
   renderOptionsFor,
@@ -181,5 +184,54 @@ describe("inferMetadata", () => {
     expect(inferMetadata("th/ipad/01.png")).toEqual({ category: "screenshot", deviceClass: "tablet", locale: "th" });
     expect(inferMetadata("feature_en.png").category).toBe("feature_graphic");
     expect(inferMetadata("th/iphone_duo/01.png")).toMatchObject({ deviceClass: "foldable", locale: "th" });
+  });
+});
+
+describe("removing individual outputs", () => {
+  const ipad = () => asset({ name: "dash.png", deviceClass: "tablet", width: 2064, height: 2752 });
+
+  it("drops only the removed output for that image (keep iPad 13, skip Play 10-inch)", () => {
+    const a = ipad();
+    a.excluded = excludePreset(a, "gp_tablet_10");
+    expect(targetsFor(a, settings()).map((t) => t.preset.id)).toEqual(["as_ipad_13"]);
+    expect(excludedTargetsFor(a, settings()).map((t) => t.preset.id)).toEqual(["gp_tablet_10"]);
+    expect(buildJobs([a], settings()).map((j) => j.preset.id)).toEqual(["as_ipad_13"]);
+  });
+
+  it("does not affect other images", () => {
+    const a = ipad();
+    const b = ipad();
+    a.excluded = ["gp_tablet_10"];
+    const jobs = buildJobs([a, b], settings());
+    expect(jobs.filter((j) => j.assetId === b.id).map((j) => j.preset.id)).toEqual(["as_ipad_13", "gp_tablet_10"]);
+  });
+
+  it("numbers the remaining files without gaps", () => {
+    const a = ipad();
+    const b = ipad();
+    a.excluded = ["gp_tablet_10"];
+    const play = buildJobs([a, b], settings()).filter((j) => j.preset.id === "gp_tablet_10");
+    expect(play.map((j) => j.pathStem.split("/").pop())).toEqual(["01_dash_1440x2560"]);
+  });
+
+  it("restore brings it back; excluding twice is harmless", () => {
+    const a = ipad();
+    a.excluded = excludePreset({ excluded: excludePreset(a, "gp_tablet_10") }, "gp_tablet_10");
+    expect(a.excluded).toEqual(["gp_tablet_10"]);
+    a.excluded = restorePreset(a, "gp_tablet_10");
+    expect(targetsFor(a, settings()).map((t) => t.preset.id)).toEqual(["as_ipad_13", "gp_tablet_10"]);
+  });
+
+  it("a removed preset that is also disabled globally isn't offered for restore", () => {
+    const a = ipad();
+    a.excluded = ["gp_tablet_10"];
+    const s = settings({ presets: new Set(["as_ipad_13"]) });
+    expect(excludedTargetsFor(a, s)).toEqual([]);
+  });
+
+  it("removing every output leaves the image with no jobs", () => {
+    const a = ipad();
+    a.excluded = ["as_ipad_13", "gp_tablet_10"];
+    expect(buildJobs([a], settings())).toEqual([]);
   });
 });

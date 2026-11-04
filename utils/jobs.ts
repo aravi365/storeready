@@ -30,6 +30,8 @@ export interface Asset {
   detection?: Detection;
   /** Path inside an uploaded folder, e.g. "th/ipad/01.png" */
   relPath?: string;
+  /** Preset ids the user removed for this image only (e.g. skip Play 10" tablet, keep iPad 13") */
+  excluded?: string[];
   /** The upload set the file was dropped into */
   set?: DeviceClass;
 
@@ -104,13 +106,30 @@ export function renderOptionsFor(asset: Asset, s: GlobalSettings): RenderOptions
   };
 }
 
-export function targetsFor(asset: Asset, s: GlobalSettings): { preset: Preset; size: Size }[] {
+function allTargetsFor(asset: Asset, s: GlobalSettings): { preset: Preset; size: Size }[] {
   const o = resolveOrientation(asset);
   return presetsFor(asset.deviceClass, asset.category, s.presets, s.stores).map((preset) => ({
     preset,
     size: sizeFor(preset, o),
   }));
 }
+
+/** Outputs this image will produce (enabled presets minus the ones removed for this image). */
+export function targetsFor(asset: Asset, s: GlobalSettings): { preset: Preset; size: Size }[] {
+  const ex = new Set(asset.excluded ?? []);
+  return allTargetsFor(asset, s).filter((t) => !ex.has(t.preset.id));
+}
+
+/** Outputs removed for this image that would otherwise be produced (shown as "Restore" chips). */
+export function excludedTargetsFor(asset: Asset, s: GlobalSettings): { preset: Preset; size: Size }[] {
+  const ex = new Set(asset.excluded ?? []);
+  return allTargetsFor(asset, s).filter((t) => ex.has(t.preset.id));
+}
+
+export const excludePreset = (asset: Pick<Asset, "excluded">, presetId: string): string[] =>
+  [...new Set([...(asset.excluded ?? []), presetId])];
+export const restorePreset = (asset: Pick<Asset, "excluded">, presetId: string): string[] =>
+  (asset.excluded ?? []).filter((id) => id !== presetId);
 
 const slug = (name: string) =>
   name

@@ -13,6 +13,7 @@ import { PresetSelector } from "@/components/PresetSelector";
 import {
   DEFAULT_SETTINGS,
   buildJobs,
+  excludePreset,
   jobSig,
   type Asset,
   type GlobalSettings,
@@ -316,6 +317,21 @@ export function ScreenshotStudio() {
   const previewIndex = previewId ? lightboxItems.findIndex((i) => i.id === previewId) : -1;
   const openPreview = useCallback((jobId: string) => setPreviewId(jobId), []);
 
+  // ───────── Remove one output for one image ─────────
+  const removeOutput = useCallback(
+    (job: Job) => {
+      const asset = assetsRef.current.find((a) => a.id === job.assetId);
+      if (!asset) return;
+      const before = asset.excluded;
+      onUpdate(asset.id, { excluded: excludePreset(asset, job.preset.id) });
+      toast(`Removed ${job.preset.store === "app_store" ? "iOS" : "Play"} ${job.preset.label} for ${asset.name}`, {
+        description: "It won't be in the ZIP. To skip this size for every image, untick it in Export presets.",
+        action: { label: "Undo", onClick: () => onUpdate(asset.id, { excluded: before }) },
+      });
+    },
+    [onUpdate],
+  );
+
   const percent =
     run.phase === "rendering"
       ? (run.done / Math.max(1, run.total)) * (run.kind === "export" ? 85 : 100)
@@ -340,7 +356,7 @@ export function ScreenshotStudio() {
           onRemove={onRemove}
           onClear={onClear}
         />
-        <OutputsTable jobs={jobs} assets={assets} outputFor={outputForJob} onPreview={openPreview} />
+        <OutputsTable jobs={jobs} assets={assets} outputFor={outputForJob} onPreview={openPreview} onRemove={removeOutput} />
         <OutputLightbox
           items={lightboxItems}
           index={previewIndex >= 0 ? previewIndex : null}

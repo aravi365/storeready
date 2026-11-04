@@ -15,6 +15,10 @@ Free, private, in-browser tool that resizes App Store and Google Play screenshot
 - **Store-compliant output:** true 24-bit RGB PNG (no alpha) or JPEG, a size cap for Google Play, and a compliance badge on every file.
 - **Fit, Fill or Stretch:** Fit keeps the whole image, adding background only where shapes really differ; under a 1% difference it fills edge to edge with an even hairline trim instead of thin bars. Fill smart-crops; Stretch distorts.
 - **Auto-generated outputs** with a table of every file, and one ZIP sorted by store, language and device.
+- **Full-size preview popup** for any generated file (100% zoom, arrow-key browsing, compliance details, download).
+- **Remove individual outputs:** drop one size for one image (e.g. keep iPad 13″, skip Play 10″ tablet) with Undo and Restore.
+- **Android tablets optional:** one switch skips all Google Play tablet sizes (phone screenshots alone are enough to publish).
+- **Adjustable text size** next to the light/dark toggle, remembered between visits.
 - **App icon generator:** iOS `AppIcon.appiconset`, Android legacy, round, adaptive and Android 13 themed icons, plus the App Store 1024 and Google Play 512 store icons.
 
 ## Run locally

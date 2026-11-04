@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Google_Sans, Google_Sans_Code } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/sonner";
+import { FONT_SCALE_BOOT } from "@/lib/fontScale";
 import { KEYWORDS, SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, SITE_URL } from "@/lib/site";
 import "./globals.css";
 
@@ -45,6 +46,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" suppressHydrationWarning className={`${googleSans.variable} ${googleSansCode.variable} h-full antialiased`}>
+      <head>
+        {/* Apply the saved text size before first paint */}
+        <script dangerouslySetInnerHTML={{ __html: FONT_SCALE_BOOT }} />
+      </head>
       <body className="min-h-full">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           {children}

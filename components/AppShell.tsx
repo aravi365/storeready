@@ -5,6 +5,7 @@ import { Images, ShieldCheck, Sparkles } from "lucide-react";
 import { IconGenerator } from "@/components/IconGenerator";
 import { ScreenshotStudio } from "@/components/ScreenshotStudio";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { FontSizeControl } from "@/components/FontSizeControl";
 import { cn } from "@/lib/utils";
 
 type Tab = "screenshots" | "icons";
@@ -20,7 +21,7 @@ export function AppShell() {
   return (
     <div className="min-h-screen">
       <header className="sticky top-0 z-30 border-b border-border/60 bg-background/70 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3 sm:px-6">
+        <div className="mx-auto flex max-w-7xl items-center gap-2 px-4 py-3 sm:gap-4 sm:px-6">
           <div className="flex items-center gap-2.5">
             <div className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 via-violet-500 to-fuchsia-500 text-white shadow-lg shadow-violet-500/25">
               <Images className="size-5" />
@@ -38,13 +39,15 @@ export function AppShell() {
                 role="tab"
                 aria-selected={tab === t.id}
                 onClick={() => setTab(t.id)}
+                aria-label={t.label}
+                title={t.label}
                 className={cn(
-                  "flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-all sm:px-4",
+                  "flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm font-medium transition-all sm:px-4",
                   tab === t.id ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
                 )}
               >
                 {t.icon}
-                {t.label}
+                <span className="hidden sm:inline">{t.label}</span>
               </button>
             ))}
           </nav>
@@ -58,6 +61,7 @@ export function AppShell() {
             >
               <ShieldCheck className="size-3 text-emerald-500" /> Specs checked Nov 2026
             </a>
+            <FontSizeControl />
             <ThemeToggle />
           </div>
         </div>

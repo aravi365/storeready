@@ -252,6 +252,16 @@ export const PRESET_BY_ID = Object.fromEntries(PRESETS.map((p) => [p.id, p])) as
   Preset
 >;
 
+/** Google Play tablet presets (7" and 10", incl. legacy 16:10). Optional in Play Console. */
+export const PLAY_TABLET_IDS = PRESETS.filter((p) => p.store === "play_store" && p.deviceClass === "tablet").map((p) => p.id);
+
+/** Turns every Play tablet preset off, or restores the default (10" 9:16) when turning back on. */
+export function setPlayTablets(presets: Set<string>, on: boolean): Set<string> {
+  const next = new Set([...presets].filter((id) => !PLAY_TABLET_IDS.includes(id)));
+  if (on) PRESETS.filter((p) => PLAY_TABLET_IDS.includes(p.id) && p.defaultEnabled).forEach((p) => next.add(p.id));
+  return next;
+}
+
 export const STORE_LABEL: Record<Store, string> = {
   app_store: "Apple App Store",
   play_store: "Google Play",
