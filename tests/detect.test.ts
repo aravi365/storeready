@@ -15,6 +15,9 @@ describe("exact resolution matches", () => {
     [1640, 2360, "tablet", /Air/],
     [1080, 1920, "phone", /Android/],
     [1600, 2560, "tablet", /10/],
+    [1398, 2034, "foldable", /Duo outer/],
+    [2007, 2853, "foldable", /Duo inner/],
+    [2853, 2007, "foldable", /Duo inner/],
   ] as const)("%i×%i → %s", (w, h, device, label) => {
     const r = d("shot.png", w, h);
     expect(r.source).toBe("exact");
@@ -63,6 +66,16 @@ describe("file and folder name hints", () => {
     expect(d("tab/home.png", 900, 1600).deviceClass).toBe("tablet");
     expect(d("table_view.png", 900, 1600).deviceClass).toBe("phone");
   });
+  it("duo / fold folder names mark a foldable", () => {
+    expect(d("en/iphone_duo/01.png", 1500, 2100).deviceClass).toBe("foldable");
+    expect(d("fold/01.png", 1500, 2100).deviceClass).toBe("foldable");
+    expect(d("Foldable Screens/01.png", 1500, 2100).deviceClass).toBe("foldable");
+  });
+  it("does not mistake other words for foldable", () => {
+    expect(d("my_folder/01.png", 900, 1600).deviceClass).toBe("phone");
+    expect(d("unfolded_view.png", 900, 1600).deviceClass).toBe("phone");
+    expect(d("duolingo.png", 900, 1600).deviceClass).toBe("phone");
+  });
   it("phone hint flips a tablet ratio", () => expect(d("android/phone/x.png", 1500, 2000).deviceClass).toBe("phone"));
   it("feature in the name marks a feature graphic", () => expect(d("feature.png", 900, 1600).category).toBe("feature_graphic"));
 });
@@ -96,6 +109,15 @@ describe("size findings", () => {
     expect(low.notes.some((n) => n.level === "warn" && n.text.includes("Low resolution"))).toBe(true);
     expect(d("x.png", 1320, 2868).notes.some((n) => n.text.includes("Low resolution"))).toBe(false);
   });
+  it("treats an exact outer-display capture as expected, not low resolution", () => {
+    const r = d("x.png", 1398, 2034);
+    expect(r.notes.some((n) => n.text.includes("Low resolution"))).toBe(false);
+    expect(r.notes).toContainEqual({ level: "info", text: expect.stringContaining("Outer-display capture") });
+  });
+  it("judges foldable resolution against the inner display", () => {
+    expect(d("duo/x.png", 1000, 1400).notes.some((n) => n.text.includes("2.04×"))).toBe(true);
+    expect(d("x.png", 2007, 2853).notes.some((n) => n.text.includes("Low resolution"))).toBe(false);
+  });
   it("warns below Play's 320 px minimum", () => {
     expect(d("x.png", 300, 600).notes.some((n) => n.text.includes("320"))).toBe(true);
   });
@@ -106,6 +128,10 @@ describe("size findings", () => {
 
 describe("aspect label", () => {
   it("reduces simple ratios", () => expect(d("x.png", 1080, 1920).aspect).toBe("9:16"));
+  it("shows the real ratio when no familiar one is close", () => {
+    expect(d("x.png", 2007, 2853).aspect).toBe("≈1:1.42");
+    expect(d("x.png", 2853, 2007).aspect).toBe("≈1.42:1");
+  });
   it("names messy ratios and keeps orientation", () => {
     expect(d("x.png", 1320, 2868).aspect).toBe("≈9:19.5");
     expect(d("x.png", 2868, 1320).aspect).toBe("≈19.5:9");

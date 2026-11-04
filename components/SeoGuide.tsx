@@ -11,6 +11,10 @@ export const FAQ: { q: string; a: string }[] = [
     a: "Upload iPhone screenshots at 1320×2868 px (6.9-inch display, portrait) or 2868×1320 px (landscape); 1290×2796 and 1260×2736 are also accepted in that slot. If your app runs on iPad, add 13-inch iPad screenshots at 2064×2752 or 2048×2732 px. App Store Connect scales these down for smaller devices.",
   },
   {
+    q: "What screenshot sizes does iPhone Duo (the foldable iPhone) need?",
+    a: "iPhone Duo has two displays, and App Store Connect takes a set for each: the outer (folded) display at 1398×2034 px and the inner (unfolded) display at 2007×2853 px, in portrait or landscape. Uploading them adds an \u201coptimized for iPhone Duo\u201d badge to your product page, and they become required from April 2027 for apps built with the iOS 27.1 SDK or later. Drop images into StoreShot\u2019s iPhone Duo set to get both sizes.",
+  },
+  {
     q: "Why does App Store Connect reject my PNG screenshots?",
     a: "The most common reasons are a wrong pixel size or an alpha channel. Apple rejects images that contain transparency or an alpha channel, even if every pixel is opaque. Browsers and many design tools save RGBA PNGs by default. StoreShot flattens every image onto a solid background and writes a true 24-bit RGB PNG.",
   },
@@ -76,7 +80,7 @@ export function SeoGuide() {
           <div>
             <h3 className="text-lg font-semibold">How to resize screenshots for the App Store and Play Store</h3>
             <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm text-muted-foreground">
-              <li>Drop your phone screenshots into the Mobile set and your iPad screenshots into the iPad / Tablet set, or drop whole folders (for example en/iphone and th/ipad) into Smart folder import.</li>
+              <li>Drop your phone screenshots into the Mobile set, iPad screenshots into the iPad / Tablet set and foldable screenshots into the iPhone Duo set, or drop whole folders (for example en/iphone and th/ipad) into Smart folder import.</li>
               <li>StoreShot detects each device from its resolution and tags English or Thai from the file name.</li>
               <li>Choose Fit (letterbox), Fill (smart crop) or Stretch. Transparency is flattened automatically.</li>
               <li>Check the compliance badge on each preview, then download one ZIP sorted by store, language and device.</li>

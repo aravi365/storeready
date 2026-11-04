@@ -4,7 +4,7 @@ export const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 export const SITE_NAME = "StoreShot";
 export const SITE_TITLE = "App Store & Google Play Screenshot Resizer + App Icon Generator";
 export const SITE_DESCRIPTION =
-  "Free, private, in-browser tool to resize App Store and Google Play screenshots to every required size (iPhone 6.9\", iPad 13\", Play phone, tablet, feature graphic), strip alpha, and generate iOS + Android app icons for Flutter, React Native and Expo.";
+  "Free, private, in-browser tool to resize App Store and Google Play screenshots to every required size (iPhone 6.9\", iPhone Duo foldable, iPad 13\", Play phone, tablet, feature graphic), strip alpha, and generate iOS + Android app icons for Flutter, React Native and Expo.";
 export const KEYWORDS = [
   "app store screenshot sizes 2026",
   "app store screenshot resizer",
@@ -12,6 +12,10 @@ export const KEYWORDS = [
   "iphone 6.9 screenshot size",
   "1320x2868",
   "ipad 13 inch screenshot size",
+  "iphone duo screenshot size",
+  "foldable iphone screenshot size",
+  "1398x2034",
+  "2007x2853",
   "2064x2752",
   "google play feature graphic 1024x500",
   "app store connect screenshot dimensions",

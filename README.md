@@ -9,8 +9,8 @@ Free, private, in-browser tool that resizes App Store and Google Play screenshot
 ![StoreShot app icon generator: iOS and Android icon previews with the adaptive-icon safe zone and Flutter project layout](docs/app-icons-tab.jpg)
 
 ## Features
-- **Every 2026 store size:** iPhone 6.9″ (1320×2868), iPad 13″ (2064×2752), Google Play phone, 7″ and 10″ tablet, and the 1024×500 feature graphic, in portrait or landscape.
-- **Upload files or whole folders:** drop into the Mobile or iPad / Tablet set, or use **Smart folder import** with a tree like `en/iphone`, `th/ipad`. You can drop several folders at once, or pick them one after another. Hidden and non-image files are skipped.
+- **Every 2026 store size:** iPhone 6.9″ (1320×2868), iPhone Duo foldable (outer 1398×2034 and inner 2007×2853), iPad 13″ (2064×2752), Google Play phone, 7″ and 10″ tablet, and the 1024×500 feature graphic, in portrait or landscape.
+- **Upload files or whole folders:** drop into the Mobile, iPad / Tablet or iPhone Duo set, or use **Smart folder import** with a tree like `en/iphone`, `th/ipad`. You can drop several folders at once, or pick them one after another. Hidden and non-image files are skipped.
 - **Auto-detection:** device from the exact pixel size (about 30 known iPhone, iPad and Android resolutions), then aspect ratio; language (English/Thai) and type from file and folder names; warnings for oversized or low-resolution sources.
 - **Store-compliant output:** true 24-bit RGB PNG (no alpha) or JPEG, a size cap for Google Play, and a compliance badge on every file.
 - **Fit, Fill or Stretch:** letterbox over a blurred or solid background, smart crop, or exact stretch.

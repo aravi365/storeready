@@ -14,6 +14,7 @@ import {
   ImagePlus,
   Loader2,
   Smartphone,
+  BookOpen,
   Tablet,
   Trash2,
   Upload,
@@ -47,6 +48,8 @@ import { partitionUploads, relPathOf } from "@/utils/uploads";
 
 const fmtBytes = (n: number) =>
   n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`;
+
+const SET_NAME: Record<DeviceClass, string> = { phone: "Mobile", tablet: "iPad / Tablet", foldable: "iPhone Duo" };
 
 let idSeq = 0;
 const newId = () => `a${Date.now().toString(36)}${(idSeq++).toString(36)}`;
@@ -109,7 +112,7 @@ export function ImageUploader({
                     ...detection.notes,
                     {
                       level: "warn",
-                      text: `Dropped in the ${forcedDevice === "phone" ? "Mobile" : "iPad / Tablet"} set, but it looks like a ${detection.label}.`,
+                      text: `Dropped in the ${SET_NAME[forcedDevice]} set, but it was detected as ${detection.label}.`,
                     },
                   ],
                 }
@@ -139,12 +142,13 @@ export function ImageUploader({
   const counts = {
     phone: assets.filter((a) => a.deviceClass === "phone" && a.category === "screenshot").length,
     tablet: assets.filter((a) => a.deviceClass === "tablet" && a.category === "screenshot").length,
+    foldable: assets.filter((a) => a.deviceClass === "foldable" && a.category === "screenshot").length,
     feature: assets.filter((a) => a.category === "feature_graphic").length,
   };
 
   return (
     <div className="space-y-5">
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <SetDropzone
           device="phone"
           title="Mobile set"
@@ -161,6 +165,14 @@ export function ImageUploader({
           busy={busy}
           onFiles={(f) => ingest(f, "tablet")}
         />
+        <SetDropzone
+          device="foldable"
+          title="iPhone Duo set"
+          subtitle="Foldable · outer + inner display"
+          count={counts.foldable}
+          busy={busy}
+          onFiles={(f) => ingest(f, "foldable")}
+        />
       </div>
       <FolderImportZone busy={busy} onFiles={(f) => ingest(f)} />
       <p className="-mt-2 text-center text-xs text-muted-foreground">
@@ -174,6 +186,7 @@ export function ImageUploader({
             <Chip>{assets.length} sources</Chip>
             <Chip>{counts.phone} mobile</Chip>
             <Chip>{counts.tablet} tablet</Chip>
+            {counts.foldable > 0 && <Chip>{counts.foldable} Duo</Chip>}
             {counts.feature > 0 && <Chip>{counts.feature} feature</Chip>}
             <Chip>{assets.filter((a) => a.locale === "en").length} EN</Chip>
             <Chip>{assets.filter((a) => a.locale === "th").length} TH</Chip>
@@ -298,6 +311,7 @@ function AssetCard({
             options={[
               { value: "phone", label: <><Smartphone className="size-3" /> iPhone / Mobile</> },
               { value: "tablet", label: <><Tablet className="size-3" /> iPad / Tablet</> },
+              { value: "foldable", label: <><BookOpen className="size-3" /> iPhone Duo</> },
             ]}
           />
           <Segmented
@@ -365,7 +379,7 @@ function AssetCard({
           <div className="w-px shrink-0 bg-border" />
           {targets.length === 0 ? (
             <p className="self-center text-sm text-muted-foreground">
-              No enabled presets match this {isFeature ? "feature graphic" : `${a.deviceClass} screenshot`}. Enable one
+              No enabled presets match this {isFeature ? "feature graphic" : `${SET_NAME[a.deviceClass]} screenshot`}. Enable one
               in Export presets.
             </p>
           ) : (
@@ -703,7 +717,7 @@ function SetDropzone({
     multiple: true,
     disabled: busy,
   });
-  const Icon = device === "phone" ? Smartphone : Tablet;
+  const Icon = { phone: Smartphone, tablet: Tablet, foldable: BookOpen }[device];
   return (
     <div
       {...getRootProps()}
@@ -719,7 +733,11 @@ function SetDropzone({
       <div
         className={cn(
           "flex size-14 shrink-0 items-center justify-center rounded-xl text-white shadow-md",
-          device === "phone" ? "bg-gradient-to-br from-violet-500 to-indigo-600" : "bg-gradient-to-br from-sky-500 to-cyan-600",
+          {
+            phone: "bg-gradient-to-br from-violet-500 to-indigo-600",
+            tablet: "bg-gradient-to-br from-sky-500 to-cyan-600",
+            foldable: "bg-gradient-to-br from-emerald-500 to-teal-600",
+          }[device],
         )}
       >
         {isDragActive ? <ImagePlus className="size-6" /> : <Icon className="size-6" />}

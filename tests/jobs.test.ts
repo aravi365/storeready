@@ -53,6 +53,14 @@ describe("targetsFor", () => {
   it("tablet screenshot → iPad 13 + Play 10-inch", () => {
     expect(targetsFor(asset({ deviceClass: "tablet" }), settings()).map((t) => t.preset.id)).toEqual(["as_ipad_13", "gp_tablet_10"]);
   });
+  it("iPhone Duo screenshot → outer and inner display sizes", () => {
+    const t = targetsFor(asset({ deviceClass: "foldable", width: 2007, height: 2853 }), settings());
+    expect(t.map((x) => `${x.preset.folder} ${x.size.w}x${x.size.h}`)).toEqual(["iphone_duo_outer 1398x2034", "iphone_duo_inner 2007x2853"]);
+  });
+  it("landscape Duo screenshots get landscape sizes", () => {
+    const t = targetsFor(asset({ deviceClass: "foldable", width: 2853, height: 2007 }), settings());
+    expect(t.map((x) => x.size)).toEqual([{ w: 2034, h: 1398 }, { w: 2853, h: 2007 }]);
+  });
   it("landscape sources get landscape targets", () => {
     const t = targetsFor(asset({ width: 2868, height: 1320 }), settings());
     expect(t.map((x) => x.size)).toEqual([{ w: 2868, h: 1320 }, { w: 1920, h: 1080 }]);
@@ -91,6 +99,7 @@ describe("buildJobs", () => {
         asset({ name: "home.png", locale: "th" }),
         asset({ name: "ipad.png", deviceClass: "tablet", width: 2064, height: 2752 }),
         asset({ name: "banner.png", category: "feature_graphic", width: 1024, height: 500 }),
+        asset({ name: "duo.png", deviceClass: "foldable", locale: "th", width: 2007, height: 2853 }),
       ],
       settings(),
     );
@@ -104,6 +113,8 @@ describe("buildJobs", () => {
       "app-store-assets/app_store/en/ipad_13/01_ipad_2064x2752",
       "app-store-assets/play_store/en/tablet_10in/01_ipad_1440x2560",
       "app-store-assets/play_store/en/feature_graphic/01_banner_1024x500",
+      "app-store-assets/app_store/th/iphone_duo_outer/01_duo_1398x2034",
+      "app-store-assets/app_store/th/iphone_duo_inner/01_duo_2007x2853",
     ]);
   });
 
@@ -165,5 +176,6 @@ describe("inferMetadata", () => {
   it("guesses from the name before the image is decoded", () => {
     expect(inferMetadata("th/ipad/01.png")).toEqual({ category: "screenshot", deviceClass: "tablet", locale: "th" });
     expect(inferMetadata("feature_en.png").category).toBe("feature_graphic");
+    expect(inferMetadata("th/iphone_duo/01.png")).toMatchObject({ deviceClass: "foldable", locale: "th" });
   });
 });

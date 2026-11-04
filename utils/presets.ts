@@ -7,6 +7,9 @@
  *    • 6.5" (Face ID, large): 1284×2778 or 1242×2688 — fallback when no 6.9" set is provided
  *    • 13" iPad: 2064×2752 or 2048×2732 (required if the app runs on iPad)
  *    • 12.9" iPad (2nd gen): 2048×2732 — optional, scaled from 13" if missing
+ *    • iPhone Duo (foldable): outer display 1398×2034, inner display 2007×2853 (either orientation).
+ *      Submitting them adds an "optimized for iPhone Duo" badge to the product page; required from
+ *      April 2027 for apps built with the iOS 27.1 SDK or later. (Re-verified 2026-11-05.)
  *    • .png / .jpg / .jpeg, no alpha channel or transparency, 1–10 per device size
  *  - Google Play: https://support.google.com/googleplay/android-developer/answer/9866151
  *    • Screenshots: JPEG or 24-bit PNG (no alpha), each side 320–3840 px,
@@ -18,7 +21,7 @@
  */
 
 export type Store = "app_store" | "play_store";
-export type DeviceClass = "phone" | "tablet";
+export type DeviceClass = "phone" | "tablet" | "foldable";
 export type Category = "screenshot" | "feature_graphic";
 export type Locale = "en" | "th";
 export type Orientation = "portrait" | "landscape";
@@ -122,6 +125,31 @@ export const PRESETS: Preset[] = [
     defaultEnabled: false,
     rules: { kind: "exact", accepted: both({ w: 2048, h: 2732 }) },
     note: 'Optional. Apple scales 13" screenshots when this is missing.',
+  },
+
+  {
+    id: "as_duo_outer",
+    store: "app_store",
+    label: "iPhone Duo outer",
+    folder: "iphone_duo_outer",
+    deviceClass: "foldable",
+    category: "screenshot",
+    portrait: { w: 1398, h: 2034 },
+    defaultEnabled: true,
+    rules: { kind: "exact", accepted: both({ w: 1398, h: 2034 }) },
+    note: "Folded (cover) display. Duo screenshots add an \u201coptimized for iPhone Duo\u201d badge; required from April 2027 (iOS 27.1 SDK).",
+  },
+  {
+    id: "as_duo_inner",
+    store: "app_store",
+    label: "iPhone Duo inner",
+    folder: "iphone_duo_inner",
+    deviceClass: "foldable",
+    category: "screenshot",
+    portrait: { w: 2007, h: 2853 },
+    defaultEnabled: true,
+    rules: { kind: "exact", accepted: both({ w: 2007, h: 2853 }) },
+    note: "Unfolded (main) display.",
   },
 
   // ───────── Google Play ─────────

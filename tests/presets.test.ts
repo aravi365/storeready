@@ -27,7 +27,15 @@ describe("preset table", () => {
   it("enables the folder layout from the spec by default", () => {
     const folders = PRESETS.filter((p) => p.defaultEnabled).map((p) => `${p.store}/${p.folder}`).sort();
     expect(folders).toEqual(
-      ["app_store/ipad_13", "app_store/iphone_6.9", "play_store/feature_graphic", "play_store/phone", "play_store/tablet_10in"].sort(),
+      [
+        "app_store/ipad_13",
+        "app_store/iphone_6.9",
+        "app_store/iphone_duo_inner",
+        "app_store/iphone_duo_outer",
+        "play_store/feature_graphic",
+        "play_store/phone",
+        "play_store/tablet_10in",
+      ].sort(),
     );
   });
 
@@ -38,6 +46,8 @@ describe("preset table", () => {
     expect(PRESET_BY_ID.as_ipad_129.portrait).toEqual({ w: 2048, h: 2732 });
     expect(PRESET_BY_ID.gp_phone.portrait).toEqual({ w: 1080, h: 1920 });
     expect(PRESET_BY_ID.gp_feature.portrait).toEqual({ w: 1024, h: 500 });
+    expect(PRESET_BY_ID.as_duo_outer.portrait).toEqual({ w: 1398, h: 2034 });
+    expect(PRESET_BY_ID.as_duo_inner.portrait).toEqual({ w: 2007, h: 2853 });
   });
 });
 
@@ -78,6 +88,15 @@ describe("checkDimensions rules", () => {
     expect(passes("as_iphone_69", 1080, 1920)).toBe(false);
     expect(passes("as_ipad_13", 2048, 2732)).toBe(true);
     expect(passes("as_ipad_13", 2064, 2751)).toBe(false);
+  });
+
+  it("iPhone Duo accepts each display's exact size, in either orientation, and nothing else", () => {
+    expect(passes("as_duo_outer", 1398, 2034)).toBe(true);
+    expect(passes("as_duo_outer", 2034, 1398)).toBe(true);
+    expect(passes("as_duo_inner", 2007, 2853)).toBe(true);
+    expect(passes("as_duo_inner", 2853, 2007)).toBe(true);
+    expect(passes("as_duo_outer", 2007, 2853)).toBe(false); // inner size in the outer slot
+    expect(passes("as_duo_inner", 1320, 2868)).toBe(false);
   });
 
   it("feature graphic must be exactly 1024×500", () => {
@@ -144,8 +163,13 @@ describe("presetsFor", () => {
     expect(ids).not.toContain("as_ipad_13");
     expect(ids).not.toContain("gp_feature");
   });
+  it("foldable screenshots get both iPhone Duo displays and nothing else", () => {
+    expect(presetsFor("foldable", "screenshot", all, stores).map((p) => p.id)).toEqual(["as_duo_outer", "as_duo_inner"]);
+    expect(presetsFor("phone", "screenshot", all, stores).some((p) => p.deviceClass === "foldable")).toBe(false);
+  });
   it("returns only the feature graphic for feature assets, regardless of device", () => {
     expect(presetsFor("tablet", "feature_graphic", all, stores).map((p) => p.id)).toEqual(["gp_feature"]);
+    expect(presetsFor("foldable", "feature_graphic", all, stores).map((p) => p.id)).toEqual(["gp_feature"]);
   });
   it("respects disabled stores and presets", () => {
     expect(presetsFor("phone", "screenshot", all, new Set<Store>(["app_store"])).every((p) => p.store === "app_store")).toBe(true);

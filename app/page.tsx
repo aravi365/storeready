@@ -17,6 +17,7 @@ const jsonLd = {
       offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
       featureList: [
         "Resize screenshots for iPhone 6.9-inch (1320×2868) and iPad 13-inch (2064×2752)",
+        "iPhone Duo foldable screenshots for the outer (1398×2034) and inner (2007×2853) displays",
         "Google Play phone, 7-inch and 10-inch tablet screenshots and 1024×500 feature graphic",
         "Strips alpha channel: true 24-bit RGB PNG output",
         "Auto-detects device from image resolution",
