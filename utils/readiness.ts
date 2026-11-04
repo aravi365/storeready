@@ -16,6 +16,7 @@
  */
 import type { Job, OutputState } from "./jobs";
 import { checkDimensions, type Locale, type Store } from "./presets";
+import { languageName } from "./languages";
 
 export type Level = "error" | "warning" | "info";
 
@@ -62,12 +63,11 @@ const APPLE_SLOT: Record<string, { slot: string; name: string }> = {
 const PLAY_TYPE = (presetId: string) =>
   presetId === "gp_feature" ? "feature" : presetId === "gp_phone" ? "phone" : presetId.startsWith("gp_tablet_7") ? "tablet_7" : "tablet_10";
 
-const LOCALE_NAME: Record<Locale, string> = { en: "English", th: "Thai" };
 
 export function checkReadiness(
   jobs: Job[],
   outputOf: (job: Job) => Pick<OutputState, "status" | "compliance"> | undefined,
-  opts: { hasTabletSources?: Partial<Record<Locale, boolean>> } = {},
+  opts: { hasTabletSources?: Record<Locale, boolean> } = {},
 ): ReadinessReport {
   const items: ReadinessItem[] = [];
   const add = (i: ReadinessItem) => items.push(i);
@@ -80,7 +80,7 @@ export function checkReadiness(
   // A language is checked for a store when it has at least one output for that store.
   const locales = [...new Set(jobs.map((j) => j.locale))];
   for (const locale of locales) {
-    const L = LOCALE_NAME[locale];
+    const L = languageName(locale);
 
     // ─── Apple ───
     const apple = groups.get(`app_store/${locale}`) ?? [];

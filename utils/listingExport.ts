@@ -8,25 +8,23 @@
 import JSZip from "jszip";
 import { FIELDS, type Listing } from "./listingRules";
 import type { Locale } from "./presets";
+import { storeLocale } from "./languages";
 
-export const APPLE_LOCALE: Record<Locale, string> = { en: "en-US", th: "th" };
-export const PLAY_LOCALE: Record<Locale, string> = { en: "en-US", th: "th" };
-
-export function fastlaneFiles(drafts: Partial<Record<Locale, Listing>>): { path: string; text: string }[] {
+export function fastlaneFiles(drafts: Record<Locale, Listing>): { path: string; text: string }[] {
   const files: { path: string; text: string }[] = [];
   for (const [locale, listing] of Object.entries(drafts) as [Locale, Listing][]) {
     if (!listing) continue;
     for (const f of FIELDS) {
       const text = listing[f.id].trim();
       if (!text) continue;
-      const dir = f.store === "apple" ? `fastlane/metadata/${APPLE_LOCALE[locale]}` : `fastlane/metadata/android/${PLAY_LOCALE[locale]}`;
+      const dir = f.store === "apple" ? `fastlane/metadata/${storeLocale("app_store", locale)}` : `fastlane/metadata/android/${storeLocale("play_store", locale)}`;
       files.push({ path: `${dir}/${f.fastlane}`, text: `${text}\n` });
     }
   }
   return files;
 }
 
-export async function buildFastlaneZip(drafts: Partial<Record<Locale, Listing>>): Promise<Blob> {
+export async function buildFastlaneZip(drafts: Record<Locale, Listing>): Promise<Blob> {
   const files = fastlaneFiles(drafts);
   if (!files.length) throw new Error("Nothing to export yet. Fill in at least one field.");
   const zip = new JSZip();

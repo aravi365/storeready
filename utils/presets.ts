@@ -25,7 +25,8 @@
 export type Store = "app_store" | "play_store";
 export type DeviceClass = "phone" | "tablet" | "foldable";
 export type Category = "screenshot" | "feature_graphic";
-export type Locale = "en" | "th";
+/** A language id from utils/languages.ts (App Store Connect code, e.g. "en-US", "ja", "zh-Hans"). */
+export type Locale = string;
 export type Orientation = "portrait" | "landscape";
 
 export interface Size {
@@ -267,7 +268,6 @@ export const STORE_LABEL: Record<Store, string> = {
   play_store: "Google Play",
 };
 
-export const LOCALE_LABEL: Record<Locale, string> = { en: "English", th: "ไทย (Thai)" };
 
 export function sizeFor(preset: Preset, orientation: Orientation): Size {
   if (preset.landscapeOnly) return preset.portrait;

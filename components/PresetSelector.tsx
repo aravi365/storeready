@@ -11,7 +11,8 @@ import { Switch } from "@/components/ui/switch";
 import { Segmented } from "@/components/Segmented";
 import { cn } from "@/lib/utils";
 import type { GlobalSettings } from "@/utils/jobs";
-import { LOCALE_LABEL, PLAY_TABLET_IDS, PRESETS, STORE_LABEL, setPlayTablets, type Locale, type Store } from "@/utils/presets";
+import { PLAY_TABLET_IDS, PRESETS, STORE_LABEL, setPlayTablets, type Store } from "@/utils/presets";
+import { languageName, storeLocale } from "@/utils/languages";
 import type { ScaleMode } from "@/utils/canvasResizer";
 
 const STORE_ICON: Record<Store, React.ReactNode> = {
@@ -37,9 +38,12 @@ function toggle<T>(set: Set<T>, v: T, on: boolean) {
 export function PresetSelector({
   settings,
   onChange,
+  languages = [],
 }: {
   settings: GlobalSettings;
   onChange: (next: GlobalSettings) => void;
+  /** Languages found in the uploaded images */
+  languages?: string[];
 }) {
   const set = <K extends keyof GlobalSettings>(k: K, v: GlobalSettings[K]) => onChange({ ...settings, [k]: v });
   const hexValid = /^#[0-9a-f]{6}$/i.test(settings.matte);
@@ -154,21 +158,33 @@ export function PresetSelector({
         {/* Locales */}
         <section className="space-y-2">
           <h3 className="flex items-center gap-2 text-sm font-semibold">
-            <Languages className="size-4" /> Locales to export
+            <Languages className="size-4" /> Languages to export
           </h3>
-          <div className="flex gap-4">
-            {(["en", "th"] as Locale[]).map((l) => (
-              <label key={l} className="flex cursor-pointer items-center gap-2 text-sm">
-                <Checkbox
-                  checked={settings.locales.has(l)}
-                  onCheckedChange={(v) => set("locales", toggle(settings.locales, l, !!v))}
-                />
-                <span>
-                  {LOCALE_LABEL[l]} <span className="font-mono text-xs text-muted-foreground">({l})</span>
-                </span>
-              </label>
-            ))}
-          </div>
+          {languages.length === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              Detected from file and folder names (e.g. <code className="font-mono">ja/</code>,{" "}
+              <code className="font-mono">home_de-DE.png</code>). Every App Store and Google Play language is supported; change
+              any image&apos;s language on its card.
+            </p>
+          ) : (
+            <ul className="space-y-1.5">
+              {languages.map((l) => (
+                <li key={l}>
+                  <label className="flex cursor-pointer items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={!settings.excludedLocales.has(l)}
+                      onCheckedChange={(v) => set("excludedLocales", toggle(settings.excludedLocales, l, !v))}
+                    />
+                    <span className="flex-1">{languageName(l)}</span>
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {storeLocale("app_store", l)}
+                      {storeLocale("play_store", l) !== storeLocale("app_store", l) ? ` · ${storeLocale("play_store", l)}` : ""}
+                    </span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
 
         <Separator />

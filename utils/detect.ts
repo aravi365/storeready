@@ -4,6 +4,7 @@
  * byte size, and recommends device / category / orientation / locale.
  */
 import type { Category, DeviceClass, Locale, Orientation, Size } from "./presets";
+import { DEFAULT_LANGUAGE, detectLanguageFromPath } from "./languages";
 import { PLAY_MAX_BYTES } from "./presets";
 
 export type DetectSource = "exact" | "ratio" | "filename";
@@ -94,8 +95,7 @@ function gcdRatio(w: number, h: number): string {
 }
 
 function detectLocale(name: string): Locale {
-  const lower = name.toLowerCase();
-  return /(^|[^a-z])(th|thai|th-th|th_th)([^a-z]|$)|[฀-๿]/.test(lower) ? "th" : "en";
+  return detectLanguageFromPath(name) ?? DEFAULT_LANGUAGE;
 }
 
 export function detectAsset(name: string, w: number, h: number, bytes: number): Detection {

@@ -35,6 +35,10 @@ export const FAQ: { q: string; a: string }[] = [
     a: "Apple allows emoji in app metadata (guideline 4.5.6). Google Play does not allow emojis, emoticons or repeated special characters in the app title, icon or developer name. The Listing Text tab checks each field against the right store\u2019s rule.",
   },
   {
+    q: "Which languages are supported?",
+    a: "All 50 App Store Connect localizations, from English, Spanish, French, German and Portuguese to Japanese, Chinese, Korean, Arabic, Hindi and Thai. Screenshots are tagged from folder and file names, pasted listing text is detected automatically, and exports use each store\u2019s own locale codes (for example ja on the App Store and ja-JP on Google Play).",
+  },
+  {
     q: "Are my images uploaded to a server?",
     a: "No. StoreShot runs entirely in your browser using the Canvas API and Web Workers. Your screenshots and icons never leave your device.",
   },
@@ -88,8 +92,8 @@ export function SeoGuide() {
           <div>
             <h3 className="text-lg font-semibold">How to resize screenshots for the App Store and Play Store</h3>
             <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm text-muted-foreground">
-              <li>Drop your phone screenshots into the Mobile set, iPad screenshots into the iPad / Tablet set and foldable screenshots into the iPhone Duo set, or drop whole folders (for example en/iphone and th/ipad) into Smart folder import.</li>
-              <li>StoreShot detects each device from its resolution and tags English or Thai from the file name.</li>
+              <li>Drop your phone screenshots into the Mobile set, iPad screenshots into the iPad / Tablet set and foldable screenshots into the iPhone Duo set, or drop whole folders (for example en-US/iphone and ja/ipad) into Smart folder import.</li>
+              <li>StoreShot detects each device from its resolution and the language from folder and file names (any of the 50 App Store languages, e.g. ja/, de-DE, home_fr.png).</li>
               <li>Choose Fit, Fill (smart crop) or Stretch. Fit keeps the whole image: if the shapes differ by under 1% it fills the frame with an even hairline trim, otherwise it adds background only where needed. Transparency is flattened automatically.</li>
               <li>Check the compliance badge on each preview, then download one ZIP sorted by store, language and device.</li>
             </ol>

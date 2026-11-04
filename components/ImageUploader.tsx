@@ -52,6 +52,8 @@ import {
 import { PRESETS, STORE_LABEL, evaluate, type DeviceClass, type Preset, type Size } from "@/utils/presets";
 import { detectAsset, scaleFactor, type Detection } from "@/utils/detect";
 import { partitionUploads, relPathOf } from "@/utils/uploads";
+import { languageName } from "@/utils/languages";
+import { LanguageSelect } from "@/components/LanguageSelect";
 
 const fmtBytes = (n: number) =>
   n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`;
@@ -201,8 +203,11 @@ export function ImageUploader({
             <Chip>{counts.tablet} tablet</Chip>
             {counts.foldable > 0 && <Chip>{counts.foldable} Duo</Chip>}
             {counts.feature > 0 && <Chip>{counts.feature} feature</Chip>}
-            <Chip>{assets.filter((a) => a.locale === "en").length} EN</Chip>
-            <Chip>{assets.filter((a) => a.locale === "th").length} TH</Chip>
+            {languageCounts(assets).map(([id, n]) => (
+              <Chip key={id}>
+                {n} {languageName(id)}
+              </Chip>
+            ))}
           </div>
           <Button variant="ghost" size="sm" onClick={onClear} disabled={busy}>
             <Trash2 /> Clear all
@@ -260,7 +265,7 @@ function AssetCard({
     });
   };
   const opts = renderOptionsFor(a, settings);
-  const localeOff = !settings.locales.has(a.locale);
+  const localeOff = settings.excludedLocales.has(a.locale);
   const lock = busy || !ready;
 
   return (
@@ -302,7 +307,7 @@ function AssetCard({
               )}
               {localeOff && (
                 <Badge variant="secondary" className="h-5">
-                  {a.locale.toUpperCase()} not exported
+                  {languageName(a.locale)} not exported
                 </Badge>
               )}
             </div>
@@ -339,16 +344,7 @@ function AssetCard({
               { value: "foldable", label: <><BookOpen className="size-3" /> iPhone Duo</> },
             ]}
           />
-          <Segmented
-            size="sm"
-            aria-label="Locale"
-            value={a.locale}
-            onChange={(locale) => onUpdate({ locale })}
-            options={[
-              { value: "en", label: "EN" },
-              { value: "th", label: "TH" },
-            ]}
-          />
+          <LanguageSelect size="sm" aria-label="Language" value={a.locale} onChange={(locale) => onUpdate({ locale })} className="w-44" />
           <Segmented
             size="sm"
             aria-label="Orientation"
@@ -670,7 +666,7 @@ function DetectionRow({
           Detected <span className="font-medium text-foreground">{d.label}</span>
         </span>
         <span className="text-muted-foreground">
-          · {d.aspect} · {d.locale.toUpperCase()} · from {SOURCE_LABEL[d.source]}
+          · {d.aspect} · {languageName(d.locale)} · from {SOURCE_LABEL[d.source]}
         </span>
         <Badge
           variant="outline"
@@ -859,7 +855,7 @@ function SetDropzone({
 
 // ───────────────────────── Smart folder import ─────────────────────────
 
-/** Drop a whole tree (e.g. en/iphone, th/ipad): device + locale come from folder names and image sizes. */
+/** Drop a whole tree (e.g. en-US/iphone, ja/ipad): device + locale come from folder names and image sizes. */
 function FolderImportZone({ busy, onFiles }: { busy: boolean; onFiles: (files: File[]) => void }) {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop: (accepted) => {
@@ -888,7 +884,7 @@ function FolderImportZone({ busy, onFiles }: { busy: boolean; onFiles: (files: F
       <div className="min-w-0 flex-1">
         <p className="text-sm font-semibold">{isDragActive ? "Drop folders to import" : "Smart folder import"}</p>
         <p className="text-xs text-muted-foreground">
-          Drop one or more folders, e.g. <code className="font-mono">en/iphone</code>, <code className="font-mono">th/ipad</code>.
+          Drop one or more folders, e.g. <code className="font-mono">en-US/iphone</code>, <code className="font-mono">ja/ipad</code>.
           Device and language are read from folder names and image sizes.
         </p>
       </div>
@@ -963,4 +959,11 @@ function EmptyState({ settings }: { settings: GlobalSettings }) {
       </div>
     </Card>
   );
+}
+
+/** Languages in use, most images first. */
+function languageCounts(assets: Asset[]): [string, number][] {
+  const m = new Map<string, number>();
+  for (const a of assets) m.set(a.locale, (m.get(a.locale) ?? 0) + 1);
+  return [...m].sort((a, b) => b[1] - a[1]);
 }

@@ -88,10 +88,13 @@ describe("locale", () => {
     ["home_th_TH.png", "th"],
     ["thai/01.png", "th"],
     ["หน้าแรก.png", "th"],
-    ["en/iphone/01.png", "en"],
-    ["method.png", "en"],
-    ["the_app.png", "en"],
-    ["with_thumbnail.png", "en"],
+    ["en/iphone/01.png", "en-US"],
+    ["method.png", "en-US"],
+    ["the_app.png", "en-US"],
+    ["with_thumbnail.png", "en-US"],
+    ["ja/iphone/01.png", "ja"],
+    ["de-DE/01.png", "de-DE"],
+    ["home_fr.png", "fr-FR"],
   ])("%s → %s", (name, locale) => expect(d(name, 1320, 2868).locale).toBe(locale));
 });
 

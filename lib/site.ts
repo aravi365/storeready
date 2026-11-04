@@ -26,6 +26,8 @@ export const KEYWORDS = [
   "app store keywords 100 characters",
   "google play title emoji",
   "app store guideline 2.3.10",
+  "localized app store screenshots",
+  "app store screenshots all languages",
   "app icon generator",
   "flutter app icon generator",
   "react native app icon generator",

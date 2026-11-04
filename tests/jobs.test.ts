@@ -26,7 +26,7 @@ function asset(p: Partial<Asset> = {}): Asset {
     width: 1320,
     height: 2868,
     deviceClass: "phone",
-    locale: "en",
+    locale: "en-US",
     category: "screenshot",
     orientation: "auto",
     analysis: { hasTransparency: false, focus: { x: 0.4, y: 0.6 } },
@@ -108,18 +108,18 @@ describe("buildJobs", () => {
       settings(),
     );
     expect(jobs.map((j) => j.pathStem)).toEqual([
-      "app-store-assets/app_store/en/iphone_6.9/01_home_1320x2868",
-      "app-store-assets/app_store/en/iphone_6.3/01_home_1206x2622",
-      "app-store-assets/play_store/en/phone/01_home_1080x1920",
-      "app-store-assets/app_store/en/iphone_6.9/02_settings_1320x2868",
-      "app-store-assets/app_store/en/iphone_6.3/02_settings_1206x2622",
-      "app-store-assets/play_store/en/phone/02_settings_1080x1920",
+      "app-store-assets/app_store/en-US/iphone_6.9/01_home_1320x2868",
+      "app-store-assets/app_store/en-US/iphone_6.3/01_home_1206x2622",
+      "app-store-assets/play_store/en-US/phone/01_home_1080x1920",
+      "app-store-assets/app_store/en-US/iphone_6.9/02_settings_1320x2868",
+      "app-store-assets/app_store/en-US/iphone_6.3/02_settings_1206x2622",
+      "app-store-assets/play_store/en-US/phone/02_settings_1080x1920",
       "app-store-assets/app_store/th/iphone_6.9/01_home_1320x2868",
       "app-store-assets/app_store/th/iphone_6.3/01_home_1206x2622",
       "app-store-assets/play_store/th/phone/01_home_1080x1920",
-      "app-store-assets/app_store/en/ipad_13/01_ipad_2064x2752",
-      "app-store-assets/play_store/en/tablet_10in/01_ipad_1440x2560",
-      "app-store-assets/play_store/en/feature_graphic/01_banner_1024x500",
+      "app-store-assets/app_store/en-US/ipad_13/01_ipad_2064x2752",
+      "app-store-assets/play_store/en-US/tablet_10in/01_ipad_1440x2560",
+      "app-store-assets/play_store/en-US/feature_graphic/01_banner_1024x500",
       "app-store-assets/app_store/th/iphone_duo_outer/01_duo_1398x2034",
       "app-store-assets/app_store/th/iphone_duo_inner/01_duo_2007x2853",
     ]);
@@ -128,10 +128,17 @@ describe("buildJobs", () => {
   it("skips assets that are decoding, failed, or in a locale that is switched off", () => {
     const jobs = buildJobs(
       [asset({ status: "decoding" }), asset({ status: "error" }), asset({ locale: "th" }), asset({ name: "ok.png" })],
-      settings({ locales: new Set(["en"]) }),
+      settings({ excludedLocales: new Set(["th"]) }),
     );
     expect(jobs).toHaveLength(3); // iPhone 6.9, iPhone 6.3, Play phone
     expect(jobs.every((j) => j.pathStem.includes("_ok_"))).toBe(true);
+  });
+
+  it("uses each store's own locale code in folder names", () => {
+    const paths = buildJobs([asset({ name: "home.png", locale: "ja" }), asset({ name: "home.png", locale: "zh-Hans" })], settings()).map((j) =>
+      j.pathStem.split("/").slice(1, 3).join("/"),
+    );
+    expect([...new Set(paths)]).toEqual(["app_store/ja", "play_store/ja-JP", "app_store/zh-Hans", "play_store/zh-CN"]);
   });
 
   it("sets the 8 MB cap for Play jobs only", () => {
@@ -182,6 +189,8 @@ describe("jobSig", () => {
 describe("inferMetadata", () => {
   it("guesses from the name before the image is decoded", () => {
     expect(inferMetadata("th/ipad/01.png")).toEqual({ category: "screenshot", deviceClass: "tablet", locale: "th" });
+    expect(inferMetadata("ja/ipad/01.png").locale).toBe("ja");
+    expect(inferMetadata("ipad/01.png").locale).toBe("en-US");
     expect(inferMetadata("feature_en.png").category).toBe("feature_graphic");
     expect(inferMetadata("th/iphone_duo/01.png")).toMatchObject({ deviceClass: "foldable", locale: "th" });
   });

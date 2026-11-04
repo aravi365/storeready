@@ -21,7 +21,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Segmented } from "@/components/Segmented";
 import { cn } from "@/lib/utils";
 import {
   EMPTY_LISTING,
@@ -36,15 +35,29 @@ import {
 } from "@/utils/listingRules";
 import { buildFastlaneZip } from "@/utils/listingExport";
 import type { Locale } from "@/utils/presets";
+import { DEFAULT_LANGUAGE, detectLanguage, languageName, normalizeLanguage } from "@/utils/languages";
+import { LanguageSelect } from "@/components/LanguageSelect";
 
-const STORAGE_KEY = "storeshot:listing:v1";
+const STORAGE_KEY = "storeshot:listing:v2";
+const LEGACY_KEY = "storeshot:listing:v1";
 
 interface Saved {
+  /** Languages added, in tab order */
+  languages: Locale[];
   drafts: Record<Locale, Listing>;
   company: string;
 }
 
-const EMPTY: Saved = { drafts: { en: { ...EMPTY_LISTING }, th: { ...EMPTY_LISTING } }, company: "" };
+const EMPTY: Saved = { languages: [DEFAULT_LANGUAGE], drafts: { [DEFAULT_LANGUAGE]: { ...EMPTY_LISTING } }, company: "" };
+
+interface PendingMove {
+  field: FieldId;
+  to: Locale;
+  /** Field value before the paste, restored when the text moves */
+  before: string;
+  /** Just the pasted text: the only part that moves */
+  pasted: string;
+}
 
 /** A deliberately messy example that shows most checks. */
 const EXAMPLE: Listing = {
@@ -61,21 +74,39 @@ const EXAMPLE: Listing = {
     "Budget budget budget. Penny is the budget app for your budget. Plan a budget, track the budget, share the budget, review the budget.\n\n“Life-changing app!”\n★★★★★",
 };
 
+function hasText(l: Listing | undefined) {
+  return !!l && FIELDS.some((f) => l[f.id]?.trim());
+}
+
+/** Loads drafts, migrating the old English/Thai-only format. */
 function load(): Saved {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return EMPTY;
-    const v = JSON.parse(raw) as Partial<Saved>;
-    return {
-      company: typeof v.company === "string" ? v.company : "",
-      drafts: {
-        en: { ...EMPTY_LISTING, ...(v.drafts?.en ?? {}) },
-        th: { ...EMPTY_LISTING, ...(v.drafts?.th ?? {}) },
-      },
-    };
+    if (raw) {
+      const v = JSON.parse(raw) as Partial<Saved>;
+      const languages = (v.languages ?? []).map((l) => normalizeLanguage(l) ?? l).filter(Boolean);
+      if (!languages.length) return EMPTY;
+      return {
+        company: typeof v.company === "string" ? v.company : "",
+        languages,
+        drafts: Object.fromEntries(languages.map((l) => [l, { ...EMPTY_LISTING, ...(v.drafts?.[l] ?? {}) }])),
+      };
+    }
+    const legacy = localStorage.getItem(LEGACY_KEY);
+    if (legacy) {
+      const v = JSON.parse(legacy) as { drafts?: Record<string, Partial<Listing>>; company?: string };
+      const drafts: Record<string, Listing> = {};
+      for (const [k, d] of Object.entries(v.drafts ?? {})) {
+        const full = { ...EMPTY_LISTING, ...d };
+        if (hasText(full) || k === "en") drafts[normalizeLanguage(k) ?? k] = full;
+      }
+      const languages = Object.keys(drafts);
+      return languages.length ? { company: v.company ?? "", languages, drafts } : EMPTY;
+    }
   } catch {
-    return EMPTY;
+    /* fall through */
   }
+  return EMPTY;
 }
 
 const LEVEL_ICON = {
@@ -87,7 +118,8 @@ const LEVEL_ICON = {
 export function ListingStudio() {
   const [saved, setSaved] = useState<Saved>(EMPTY);
   const [loaded, setLoaded] = useState(false);
-  const [locale, setLocale] = useState<Locale>("en");
+  const [locale, setLocale] = useState<Locale>(DEFAULT_LANGUAGE);
+  const [pending, setPending] = useState<PendingMove | null>(null);
   // Per locale + field undo stacks
   const history = useRef(new Map<string, string[]>());
   const [, bump] = useState(0);
@@ -95,8 +127,8 @@ export function ListingStudio() {
   // Load drafts after mount (localStorage isn't available during static rendering).
   useEffect(() => {
     const v = load();
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time hydration from browser storage
     setSaved(v);
+    setLocale(v.languages[0]);
     setLoaded(true);
   }, []);
   useEffect(() => {
@@ -108,7 +140,7 @@ export function ListingStudio() {
     }
   }, [saved, loaded]);
 
-  const listing = saved.drafts[locale];
+  const listing = saved.drafts[locale] ?? EMPTY_LISTING;
   const ctx = useMemo(() => ({ company: saved.company }), [saved.company]);
   const issues = useMemo(() => lintListing(listing, ctx), [listing, ctx]);
   const byField = useMemo(() => {
@@ -116,8 +148,10 @@ export function ListingStudio() {
     for (const i of issues) m.set(i.field, [...(m.get(i.field) ?? []), i]);
     return m;
   }, [issues]);
-  const otherLocale: Locale = locale === "en" ? "th" : "en";
-  const otherIssues = useMemo(() => lintListing(saved.drafts[otherLocale], ctx), [saved.drafts, otherLocale, ctx]);
+  const errorCounts = useMemo(
+    () => Object.fromEntries(saved.languages.map((l) => [l, lintListing(saved.drafts[l] ?? EMPTY_LISTING, ctx).filter((i) => i.level === "error").length])),
+    [saved.languages, saved.drafts, ctx],
+  );
 
   const pushHistory = (field: FieldId, prev: string) => {
     const key = `${locale}:${field}`;
@@ -129,10 +163,10 @@ export function ListingStudio() {
   const setField = useCallback(
     (field: FieldId, value: string, { record = false } = {}) => {
       setSaved((s) => {
-        const prev = s.drafts[locale][field];
+        const prev = (s.drafts[locale] ?? EMPTY_LISTING)[field];
         if (prev === value) return s;
         if (record) pushHistory(field, prev);
-        return { ...s, drafts: { ...s.drafts, [locale]: { ...s.drafts[locale], [field]: value } } };
+        return { ...s, drafts: { ...s.drafts, [locale]: { ...(s.drafts[locale] ?? EMPTY_LISTING), [field]: value } } };
       });
       if (record) bump((n) => n + 1);
     },
@@ -195,24 +229,107 @@ export function ListingStudio() {
 
   const count = (list: Issue[], level: Issue["level"], store?: "apple" | "play") =>
     list.filter((i) => i.level === level && (!store || i.field.startsWith(store))).length;
-  const hasText = FIELDS.some((f) => listing[f.id]);
-  const errorsIn = (l: Locale) => count(l === locale ? issues : otherIssues, "error");
+  const anyText = FIELDS.some((f) => listing[f.id]);
+
+  // ───────── Languages ─────────
+  const addLanguage = (id: Locale) => {
+    setSaved((s) => (s.languages.includes(id) ? s : { ...s, languages: [...s.languages, id], drafts: { ...s.drafts, [id]: s.drafts[id] ?? { ...EMPTY_LISTING } } }));
+    setLocale(id);
+  };
+  const removeLanguage = (id: Locale) => {
+    if (saved.languages.length <= 1) return;
+    const removed = saved.drafts[id];
+    const idx = saved.languages.indexOf(id);
+    setSaved((s) => {
+      const { [id]: _drop, ...rest } = s.drafts;
+      void _drop;
+      return { ...s, languages: s.languages.filter((l) => l !== id), drafts: rest };
+    });
+    if (locale === id) setLocale(saved.languages[idx === 0 ? 1 : idx - 1]);
+    toast(`Removed ${languageName(id)}`, {
+      action: hasText(removed)
+        ? { label: "Undo", onClick: () => setSaved((s) => ({ ...s, languages: [...s.languages, id], drafts: { ...s.drafts, [id]: removed } })) }
+        : undefined,
+    });
+  };
+
+  /** After a paste: if the text is clearly another language, offer to move it there. */
+  const onPasted = (field: FieldId, before: string, pasted: string) => {
+    const guess = detectLanguage(pasted);
+    if (!guess || guess.confidence === "low" || guess.id === locale) return;
+    // Same base language with a different region (e.g. en-GB pasted into en-US) isn't worth a prompt.
+    if (guess.id.split("-")[0] === locale.split("-")[0]) return;
+    setPending({ field, to: guess.id, before, pasted });
+  };
+
+  const moveField = (p: PendingMove) => {
+    const text = p.pasted.trim();
+    const onlyThisField = FIELDS.every((f) => f.id === p.field || !listing[f.id].trim());
+    if (onlyThisField && !p.before.trim() && !saved.languages.includes(p.to)) {
+      // Nothing else is written yet: relabel this whole draft instead of splitting it.
+      setSaved((s) => {
+        const { [locale]: draft, ...rest } = s.drafts;
+        return { ...s, languages: s.languages.map((l) => (l === locale ? p.to : l)), drafts: { ...rest, [p.to]: draft } };
+      });
+    } else {
+      setSaved((s) => ({
+        ...s,
+        languages: s.languages.includes(p.to) ? s.languages : [...s.languages, p.to],
+        drafts: {
+          ...s.drafts,
+          [locale]: { ...s.drafts[locale], [p.field]: p.before },
+          [p.to]: {
+            ...(s.drafts[p.to] ?? EMPTY_LISTING),
+            // Append if that language already has text in this field, so nothing is overwritten.
+            [p.field]: [(s.drafts[p.to] ?? EMPTY_LISTING)[p.field].trim(), text].filter(Boolean).join("\n\n"),
+          },
+        },
+      }));
+    }
+    setLocale(p.to);
+    setPending(null);
+    toast.success(`Moved to ${languageName(p.to)}`);
+  };
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
       <div className="min-w-0 space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <Segmented
-            aria-label="Language"
-            value={locale}
-            onChange={setLocale}
-            options={[
-              { value: "en", label: <>English {badge(errorsIn("en"))}</> },
-              { value: "th", label: <>ไทย (Thai) {badge(errorsIn("th"))}</> },
-            ]}
-          />
+          <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label="Listing languages">
+            {saved.languages.map((l) => (
+              <span
+                key={l}
+                className={cn(
+                  "group inline-flex items-center rounded-lg border text-sm font-medium transition",
+                  l === locale ? "border-primary/40 bg-primary/10 text-foreground" : "bg-muted/40 text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <button type="button" role="tab" aria-selected={l === locale} onClick={() => setLocale(l)} className="py-1 pr-1 pl-2.5">
+                  {languageName(l)} {badge(errorCounts[l] ?? 0)}
+                </button>
+                {saved.languages.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeLanguage(l)}
+                    aria-label={`Remove ${languageName(l)}`}
+                    className="mr-1 rounded px-1 text-muted-foreground opacity-60 hover:text-destructive hover:opacity-100"
+                  >
+                    ×
+                  </button>
+                )}
+              </span>
+            ))}
+            <LanguageSelect
+              size="sm"
+              aria-label="Add a language"
+              value=""
+              exclude={saved.languages}
+              onChange={(id) => id && addLanguage(id)}
+              className="w-40"
+            />
+          </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={copyAppleToPlay} disabled={!hasText}>
+            <Button variant="outline" size="sm" onClick={copyAppleToPlay} disabled={!anyText}>
               <ClipboardCopy /> Fill Play from Apple
             </Button>
             <Button
@@ -229,6 +346,21 @@ export function ListingStudio() {
           </div>
         </div>
 
+        {pending && (
+          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-sky-500/30 bg-sky-500/10 px-4 py-3 text-sm" role="status">
+            <Info className="size-4 shrink-0 text-sky-500" />
+            <p className="min-w-0 flex-1">
+              That text looks like <strong>{languageName(pending.to)}</strong>, but you&apos;re editing {languageName(locale)}.
+            </p>
+            <Button size="sm" onClick={() => moveField(pending)}>
+              Move it to {languageName(pending.to)}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setPending(null)}>
+              Keep in {languageName(locale)}
+            </Button>
+          </div>
+        )}
+
         <StoreCard
           store="apple"
           title="Apple App Store"
@@ -236,6 +368,7 @@ export function ListingStudio() {
           listing={listing}
           byField={byField}
           onChange={(f, v) => setField(f, v)}
+          onPasted={onPasted}
           onFix={applyFix}
           onUndo={undo}
           canUndo={(f) => (history.current.get(`${locale}:${f}`)?.length ?? 0) > 0}
@@ -248,6 +381,7 @@ export function ListingStudio() {
           listing={listing}
           byField={byField}
           onChange={(f, v) => setField(f, v)}
+          onPasted={onPasted}
           onFix={applyFix}
           onUndo={undo}
           canUndo={(f) => (history.current.get(`${locale}:${f}`)?.length ?? 0) > 0}
@@ -261,7 +395,7 @@ export function ListingStudio() {
             <CardTitle className="flex items-center gap-2">
               <Wand2 className="size-4" /> Listing check
             </CardTitle>
-            <CardDescription>{locale === "en" ? "English" : "Thai"} text, checked against Apple&apos;s and Google&apos;s rules as you type.</CardDescription>
+            <CardDescription>{languageName(locale)} text, checked against Apple&apos;s and Google&apos;s rules as you type.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {(["apple", "play"] as const).map((store) => {
@@ -323,14 +457,14 @@ export function ListingStudio() {
               variant="ghost"
               size="sm"
               className="w-full text-muted-foreground"
-              disabled={!hasText}
+              disabled={!anyText}
               onClick={() => {
                 for (const f of FIELDS) pushHistory(f.id, listing[f.id]);
                 setSaved((s) => ({ ...s, drafts: { ...s.drafts, [locale]: { ...EMPTY_LISTING } } }));
                 bump((n) => n + 1);
               }}
             >
-              <RotateCcw /> Clear {locale === "en" ? "English" : "Thai"} text
+              <RotateCcw /> Clear {languageName(locale)} text
             </Button>
             <p className="text-xs text-muted-foreground">Drafts are saved in this browser only.</p>
           </CardContent>
@@ -355,6 +489,7 @@ function StoreCard({
   onUndo,
   canUndo,
   onCopy,
+  onPasted,
 }: {
   store: "apple" | "play";
   title: string;
@@ -366,6 +501,7 @@ function StoreCard({
   onUndo: (f: FieldId) => void;
   canUndo: (f: FieldId) => boolean;
   onCopy: (text: string, label: string) => void;
+  onPasted: (field: FieldId, before: string, pasted: string) => void;
 }) {
   return (
     <Card>
@@ -386,6 +522,7 @@ function StoreCard({
             onUndo={() => onUndo(f.id)}
             canUndo={canUndo(f.id)}
             onCopy={() => onCopy(listing[f.id], `${title} ${f.label}`)}
+            onPasted={(before, pasted) => onPasted(f.id, before, pasted)}
           />
         ))}
       </CardContent>
@@ -402,6 +539,7 @@ function FieldEditor({
   onUndo,
   canUndo,
   onCopy,
+  onPasted,
 }: {
   spec: FieldSpec;
   value: string;
@@ -411,8 +549,11 @@ function FieldEditor({
   onUndo: () => void;
   canUndo: boolean;
   onCopy: () => void;
+  onPasted: (before: string, pasted: string) => void;
 }) {
   const n = measure(value, spec.unit);
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+    onPasted(e.currentTarget.value, e.clipboardData.getData("text"));
   const over = n > spec.limit;
   const id = `field-${spec.id}`;
   const worst = issues.some((i) => i.level === "error") ? "error" : issues.some((i) => i.level === "warning") ? "warning" : null;
@@ -450,10 +591,11 @@ function FieldEditor({
           onChange={(e) => onChange(e.target.value)}
           rows={spec.limit > 1000 ? 7 : 3}
           className={cn(inputClass, "resize-y leading-relaxed")}
+          onPaste={handlePaste}
           spellCheck
         />
       ) : (
-        <input id={id} value={value} onChange={(e) => onChange(e.target.value)} className={inputClass} spellCheck />
+        <input id={id} value={value} onChange={(e) => onChange(e.target.value)} onPaste={handlePaste} className={inputClass} spellCheck />
       )}
       {issues.length > 0 && (
         <ul className="space-y-1.5">

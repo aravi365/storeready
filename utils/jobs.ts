@@ -1,5 +1,6 @@
 import type { Backdrop, EncodeOptions, OutputFormat, RenderOptions, ScaleMode, SourceAnalysis } from "./canvasResizer";
 import { detectAsset, type Detection } from "./detect";
+import { storeLocale } from "./languages";
 import {
   PRESETS,
   type ComplianceResult,
@@ -47,7 +48,8 @@ export interface Asset {
 export interface GlobalSettings {
   stores: Set<Store>;
   presets: Set<string>;
-  locales: Set<Locale>;
+  /** Languages switched off for export (every detected language is included by default) */
+  excludedLocales: Set<Locale>;
   format: OutputFormat;
   quality: number;
   matte: string;
@@ -65,7 +67,7 @@ export interface GlobalSettings {
 export const DEFAULT_SETTINGS: GlobalSettings = {
   stores: new Set<Store>(["app_store", "play_store"]),
   presets: new Set(PRESETS.filter((p) => p.defaultEnabled).map((p) => p.id)),
-  locales: new Set<Locale>(["en", "th"]),
+  excludedLocales: new Set<Locale>(),
   format: "png",
   quality: 0.92,
   matte: "#FFFFFF",
@@ -145,10 +147,10 @@ export function buildJobs(assets: Asset[], s: GlobalSettings): Job[] {
   const counters = new Map<string, number>();
   const jobs: Job[] = [];
   for (const asset of assets) {
-    if (asset.status !== "ready" || !s.locales.has(asset.locale)) continue;
+    if (asset.status !== "ready" || s.excludedLocales.has(asset.locale)) continue;
     const opts = renderOptionsFor(asset, s);
     for (const { preset, size } of targetsFor(asset, s)) {
-      const folder = `app-store-assets/${preset.store}/${asset.locale}/${preset.folder}`;
+      const folder = `app-store-assets/${preset.store}/${storeLocale(preset.store, asset.locale)}/${preset.folder}`;
       const n = (counters.get(folder) ?? 0) + 1;
       counters.set(folder, n);
       jobs.push({

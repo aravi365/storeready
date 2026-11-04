@@ -11,6 +11,7 @@ import { OutputsTable } from "@/components/OutputsTable";
 import { OutputLightbox, type LightboxItem } from "@/components/OutputLightbox";
 import { ReadinessPanel } from "@/components/ReadinessPanel";
 import { checkReadiness } from "@/utils/readiness";
+import { languageName, storeLocale } from "@/utils/languages";
 import { PresetSelector } from "@/components/PresetSelector";
 import {
   DEFAULT_SETTINGS,
@@ -293,18 +294,16 @@ export function ScreenshotStudio() {
   );
   const outputForJob = useCallback((j: Job) => validOutput(j, outputs), [outputs, validOutput]);
 
+  const languagesInUse = useMemo(() => [...new Set(assets.map((a) => a.locale))].sort((a, b) => languageName(a).localeCompare(languageName(b))), [assets]);
+
   // ───────── Store-readiness checklist ─────────
   const readiness = useMemo(() => {
-    const hasTabletSources = Object.fromEntries(
-      settings.locales.size
-        ? [...settings.locales].map((l) => [
-            l,
-            assets.some((a) => a.status === "ready" && a.locale === l && a.deviceClass === "tablet" && a.category === "screenshot"),
-          ])
-        : [],
-    );
+    const hasTabletSources: Record<string, boolean> = {};
+    for (const a of assets) {
+      if (a.status === "ready" && a.deviceClass === "tablet" && a.category === "screenshot") hasTabletSources[a.locale] = true;
+    }
     return checkReadiness(jobs, (j) => validOutput(j, outputs), { hasTabletSources });
-  }, [jobs, outputs, assets, settings.locales, validOutput]);
+  }, [jobs, outputs, assets, validOutput]);
   const readinessRef = useRef(readiness);
   useEffect(() => {
     readinessRef.current = readiness;
@@ -319,7 +318,7 @@ export function ScreenshotStudio() {
         const ext = (o?.format ?? j.enc.format) === "png" ? "png" : "jpg";
         return {
           id: j.id,
-          title: `${j.preset.store === "app_store" ? "App Store" : "Google Play"} · ${j.preset.label} · ${j.locale.toUpperCase()}`,
+          title: `${j.preset.store === "app_store" ? "App Store" : "Google Play"} · ${j.preset.label} · ${languageName(j.locale)}`,
           path: o?.path ?? `${j.pathStem}.${ext}`,
           source: assets.find((a) => a.id === j.assetId)?.name ?? "",
           width: j.size.w,
@@ -401,7 +400,7 @@ export function ScreenshotStudio() {
           report={readiness}
           onEnablePreset={(id) => setSettings((s) => ({ ...s, presets: new Set([...s.presets, id]) }))}
         />
-        <PresetSelector settings={settings} onChange={setSettings} />
+        <PresetSelector settings={settings} onChange={setSettings} languages={languagesInUse} />
       </aside>
     </div>
   );
@@ -429,9 +428,10 @@ function ExportPanel({
     const t = new Map<string, Map<string, Map<string, number>>>();
     for (const j of jobs) {
       const s = t.get(j.preset.store) ?? new Map();
-      const l = s.get(j.locale) ?? new Map();
+      const code = storeLocale(j.preset.store, j.locale);
+      const l = s.get(code) ?? new Map();
       l.set(j.preset.folder, (l.get(j.preset.folder) ?? 0) + 1);
-      s.set(j.locale, l);
+      s.set(code, l);
       t.set(j.preset.store, s);
     }
     return t;

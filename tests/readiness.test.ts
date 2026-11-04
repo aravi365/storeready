@@ -142,7 +142,7 @@ describe("per-language checks", () => {
   });
 
   it("languages switched off are not checked", () => {
-    const r = report([phone(), phone(), feature(), phone({ locale: "th" })], settings({ locales: new Set(["en"]) }));
+    const r = report([phone(), phone(), feature(), phone({ locale: "th" })], settings({ excludedLocales: new Set(["th"]) }));
     expect(r.checked.some((c) => c.endsWith("/th"))).toBe(false);
   });
 });
