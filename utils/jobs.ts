@@ -28,6 +28,8 @@ export interface Asset {
   preview?: ImageBitmap;
   analysis?: SourceAnalysis;
   detection?: Detection;
+  /** Path inside an uploaded folder, e.g. "th/ipad/01.png" */
+  relPath?: string;
   /** The upload set the file was dropped into */
   set?: DeviceClass;
 

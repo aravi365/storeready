@@ -76,7 +76,7 @@ export function SeoGuide() {
           <div>
             <h3 className="text-lg font-semibold">How to resize screenshots for the App Store and Play Store</h3>
             <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm text-muted-foreground">
-              <li>Drop your phone screenshots into the Mobile set and your iPad screenshots into the iPad / Tablet set.</li>
+              <li>Drop your phone screenshots into the Mobile set and your iPad screenshots into the iPad / Tablet set, or drop whole folders (for example en/iphone and th/ipad) into Smart folder import.</li>
               <li>StoreShot detects each device from its resolution and tags English or Thai from the file name.</li>
               <li>Choose Fit (letterbox), Fill (smart crop) or Stretch. Transparency is flattened automatically.</li>
               <li>Check the compliance badge on each preview, then download one ZIP sorted by store, language and device.</li>

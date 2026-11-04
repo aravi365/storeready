@@ -2,8 +2,22 @@
 
 **Live:** https://aravi365.github.io/storeshot/
 
-Client-side tool that resizes, flattens (no alpha) and packages App Store and Google Play screenshots into a ready-to-upload ZIP. Built with Next.js App Router, TypeScript, Tailwind CSS v4 and shadcn/ui.
+Free, private, in-browser tool that resizes App Store and Google Play screenshots to every required size, strips the alpha channel, checks each file against the store rules, and packages everything into a ready-to-upload ZIP. It also generates iOS and Android app icons for Flutter, React Native and Expo projects. Nothing is uploaded: all processing happens in your browser.
 
+![StoreShot screenshot resizer: Mobile and iPad upload sets, smart folder import, detected device, live previews and the ZIP folder tree](docs/screenshots-tab.jpg)
+
+![StoreShot app icon generator: iOS and Android icon previews with the adaptive-icon safe zone and Flutter project layout](docs/app-icons-tab.jpg)
+
+## Features
+- **Every 2026 store size:** iPhone 6.9″ (1320×2868), iPad 13″ (2064×2752), Google Play phone, 7″ and 10″ tablet, and the 1024×500 feature graphic, in portrait or landscape.
+- **Upload files or whole folders:** drop into the Mobile or iPad / Tablet set, or use **Smart folder import** with a tree like `en/iphone`, `th/ipad`. You can drop several folders at once, or pick them one after another. Hidden and non-image files are skipped.
+- **Auto-detection:** device from the exact pixel size (about 30 known iPhone, iPad and Android resolutions), then aspect ratio; language (English/Thai) and type from file and folder names; warnings for oversized or low-resolution sources.
+- **Store-compliant output:** true 24-bit RGB PNG (no alpha) or JPEG, a size cap for Google Play, and a compliance badge on every file.
+- **Fit, Fill or Stretch:** letterbox over a blurred or solid background, smart crop, or exact stretch.
+- **Auto-generated outputs** with a table of every file, and one ZIP sorted by store, language and device.
+- **App icon generator:** iOS `AppIcon.appiconset`, Android legacy, round, adaptive and Android 13 themed icons, plus the App Store 1024 and Google Play 512 store icons.
+
+## Run locally
 ```bash
 npm install
 npm run dev      # http://localhost:3000
@@ -11,22 +25,25 @@ npm run build && npm start
 ```
 
 ## How it works
-1. Drop PNG/JPEG files (up to 60 MB, 12000 px a side). The app guesses the device, locale and type from the file name and aspect ratio (`*_th*`, `ipad`, `feature`, ~2:1 landscape). You can change each one per image.
+1. Drop PNG/JPEG files or folders (up to 60 MB, 12000 px a side). The app detects the device, language and type for each image; you can change any of them per image.
 2. Pick stores, presets, locales, scaling (Fit / Fill (smart crop) / Stretch), letterbox fill (blurred or solid), matte colour and format in **Export presets**.
-3. Live previews show each target next to the original, with a compliance badge (click it to see the checks).
-4. **Download ZIP** renders full-res in a Web Worker (OffscreenCanvas), checks each output, and saves `app-store-assets-YYYY-MM-DD.zip`. A `manifest.json` inside lists the compliance results.
+3. Outputs render automatically in a Web Worker. Live previews show each target next to the original, with a compliance badge (click it to see the checks).
+4. **Download ZIP** saves `app-store-assets-YYYY-MM-DD.zip`. A `manifest.json` inside lists the compliance results.
 
 ## Key files
 | File | Purpose |
 |---|---|
 | `utils/presets.ts` | Store presets, the verified rules and their sources, the compliance evaluator |
+| `utils/detect.ts` | Device / type / language detection from pixel size, file and folder names, and file size |
 | `utils/canvasResizer.ts` | Decode, alpha/focal analysis, fit/fill/stretch composition, blur backdrop, step-down downscale, encoding with size cap |
 | `utils/pngEncoder.ts` | True 24-bit RGB PNG encoder (canvas `toBlob` always writes RGBA, which Apple rejects) |
-| `utils/zipExporter.ts` | JSZip folder layout + manifest + file-saver download |
+| `utils/zipExporter.ts` | JSZip folder layout + manifest + download |
 | `utils/jobs.ts` / `utils/renderClient.ts` / `workers/render.worker.ts` | Job planning and off-main-thread rendering (falls back to the main thread) |
-| `components/ImageUploader.tsx` | Dropzone, ingest, per-asset controls, live preview tiles |
-| `components/PresetSelector.tsx` | Platform, preset, locale, scaling and output settings |
-| `app/page.tsx` | Dashboard, export orchestration, progress, folder-tree preview |
+| `utils/iconGenerator.ts` | iOS / Android / store icon rendering and project layouts |
+| `components/ImageUploader.tsx` | Upload sets, folder import, per-asset controls, live preview tiles |
+| `components/ScreenshotStudio.tsx` | Auto-generate pipeline, export, progress, folder-tree preview |
+| `components/IconGenerator.tsx` | App icon tab |
+| `components/SeoGuide.tsx` | Size guide and FAQ shown below the tool |
 
 ## App icons
 The **App Icons** tab turns one 1024×1024 image into:

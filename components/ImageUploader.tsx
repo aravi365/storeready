@@ -5,6 +5,8 @@ import { useDropzone, type FileRejection } from "react-dropzone";
 import { toast } from "sonner";
 import {
   AlertTriangle,
+  FolderOpen,
+  FolderTree,
   ScanSearch,
   Wand2,
   CheckCircle2,
@@ -76,11 +78,12 @@ export function ImageUploader({
         id: newId(),
         file,
         name: file.name,
+        relPath: relPathOf(file),
         thumbUrl: URL.createObjectURL(file),
         status: "decoding",
         width: 0,
         height: 0,
-        ...inferMetadata(file.name),
+        ...inferMetadata(relPathOf(file)),
         ...(forcedDevice ? { deviceClass: forcedDevice } : {}),
         set: forcedDevice,
         orientation: "auto",
@@ -91,7 +94,7 @@ export function ImageUploader({
       for (const a of placeholders) {
         try {
           const { width, height, preview, analysis } = await ingestImage(a.file);
-          const detection = detectAsset(a.name, width, height, a.file.size);
+          const detection = detectAsset(a.relPath ?? a.name, width, height, a.file.size);
           const mismatch = forcedDevice && detection.confidence === "high" && detection.deviceClass !== forcedDevice;
           onUpdate(a.id, {
             status: "ready",
@@ -159,8 +162,9 @@ export function ImageUploader({
           onFiles={(f) => ingest(f, "tablet")}
         />
       </div>
+      <FolderImportZone busy={busy} onFiles={(f) => ingest(f)} />
       <p className="-mt-2 text-center text-xs text-muted-foreground">
-        PNG or JPEG up to 60 MB · feature graphics (≈1024×500) are picked up automatically from either zone · files never
+        PNG or JPEG up to 60 MB · drop several folders at once · feature graphics (≈1024×500) are picked up automatically from either zone · files never
         leave your browser
       </p>
 
@@ -233,9 +237,14 @@ function AssetCard({
             className="size-14 shrink-0 rounded-md border bg-[repeating-conic-gradient(#e5e5e5_0_25%,#fff_0_50%)] bg-[length:12px_12px] object-contain"
           />
           <div className="min-w-0 space-y-1">
-            <p className="truncate font-medium" title={a.name}>
+            <p className="truncate font-medium" title={a.relPath ?? a.name}>
               {a.name}
             </p>
+            {a.relPath && a.relPath !== a.name && (
+              <p className="flex items-center gap-1 truncate font-mono text-[11px] text-muted-foreground">
+                <FolderOpen className="size-3 shrink-0" /> {a.relPath.split("/").slice(0, -1).join("/")}/
+              </p>
+            )}
             <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
               {a.status === "decoding" && (
                 <span className="flex items-center gap-1">
@@ -589,26 +598,113 @@ function DetectionRow({
   );
 }
 
-// ───────────────────────── Set dropzone ─────────────────────────
+// ───────────────────────── Files & folders ─────────────────────────
 
-const DROP_ACCEPT = Object.fromEntries(
-  ACCEPTED_TYPES.map((t) => [t, t === "image/png" ? [".png"] : [".jpg", ".jpeg"]]),
-);
+const ACCEPT_ATTR = "image/png,image/jpeg,.png,.jpg,.jpeg";
+const IMAGE_EXT = /\.(png|jpe?g)$/i;
+
+/** Path inside the dropped/picked folder (e.g. "th/ipad/01.png"), or just the file name. */
+export function relPathOf(f: File): string {
+  const x = f as File & { path?: string; relativePath?: string };
+  return (x.relativePath || x.webkitRelativePath || x.path || f.name).replace(/^\.?\//, "");
+}
+
+const isHidden = (f: File) =>
+  relPathOf(f)
+    .split("/")
+    .some((seg) => seg.startsWith(".") || seg === "__MACOSX") || /^(thumbs\.db|desktop\.ini)$/i.test(f.name);
+
+/**
+ * Filters a mixed batch (folders can contain anything): keeps PNG/JPEG under the size
+ * limit, silently drops hidden/system files, and reports the rest in one summary toast.
+ */
+function filterUploads(files: File[]): File[] {
+  const visible = files.filter((f) => !isHidden(f));
+  const images: File[] = [];
+  let wrongType = 0;
+  let tooBig = 0;
+  for (const f of visible) {
+    const typeOk = ACCEPTED_TYPES.includes(f.type) || (!f.type && IMAGE_EXT.test(f.name));
+    if (!typeOk) wrongType++;
+    else if (f.size > MAX_INPUT_BYTES) tooBig++;
+    else images.push(f);
+  }
+  // Keep folder order: natural sort by path so 2.png comes before 10.png.
+  images.sort((a, b) => relPathOf(a).localeCompare(relPathOf(b), undefined, { numeric: true, sensitivity: "base" }));
+
+  const folders = new Set(images.map((f) => relPathOf(f).split("/").slice(0, -1).join("/")).filter(Boolean));
+  const skipped = [
+    wrongType && `${wrongType} not PNG/JPEG`,
+    tooBig && `${tooBig} over ${MAX_INPUT_BYTES / 1048576} MB`,
+  ].filter(Boolean);
+  if (!images.length) {
+    toast.error("No PNG or JPEG images found", { description: skipped.join(" · ") || undefined });
+  } else if (folders.size || skipped.length) {
+    toast.success(
+      `Imported ${images.length} image${images.length === 1 ? "" : "s"}${folders.size ? ` from ${folders.size} folder${folders.size === 1 ? "" : "s"}` : ""}`,
+      { description: skipped.length ? `Skipped ${skipped.join(" · ")}` : undefined },
+    );
+  }
+  return images;
+}
 
 function onDropRejected(rejections: FileRejection[]) {
-  for (const r of rejections) {
-    const reason = r.errors
-      .map((e) =>
-        e.code === "file-too-large"
-          ? `larger than ${MAX_INPUT_BYTES / 1048576} MB`
-          : e.code === "file-invalid-type"
-            ? "not a PNG or JPEG"
-            : e.message,
-      )
-      .join(", ");
-    toast.error(`Skipped ${r.file.name}`, { description: reason });
-  }
+  filterUploads(rejections.map((r) => r.file));
 }
+
+/** "Choose folder" button. Pick as many folders as you like, one after another. */
+function FolderButton({
+  onFiles,
+  disabled,
+  label = "Choose folder",
+  variant = "link",
+}: {
+  onFiles: (files: File[]) => void;
+  disabled?: boolean;
+  label?: string;
+  variant?: "link" | "button";
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    // Not in React's typings; enables folder selection in all modern browsers.
+    ref.current?.setAttribute("webkitdirectory", "");
+    ref.current?.setAttribute("directory", "");
+  }, []);
+  return (
+    <>
+      <input
+        ref={ref}
+        type="file"
+        multiple
+        hidden
+        aria-label={label}
+        data-folder-input
+        onChange={(e) => {
+          const files = [...(e.target.files ?? [])];
+          e.target.value = "";
+          const images = filterUploads(files);
+          if (images.length) onFiles(images);
+        }}
+      />
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={(e) => {
+          e.stopPropagation();
+          ref.current?.click();
+        }}
+        className={cn(
+          "inline-flex items-center gap-1 text-xs font-medium text-primary disabled:opacity-50",
+          variant === "link" ? "hover:underline" : "h-8 rounded-lg border bg-background px-3 hover:bg-muted",
+        )}
+      >
+        <FolderOpen className="size-3.5" /> {label}
+      </button>
+    </>
+  );
+}
+
+// ───────────────────────── Set dropzone ─────────────────────────
 
 function SetDropzone({
   device,
@@ -626,10 +722,12 @@ function SetDropzone({
   onFiles: (files: File[]) => void;
 }) {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop: (accepted) => accepted.length && onFiles(accepted),
+    // No `accept` here: dropped folders can hold anything, so we filter (and summarise) ourselves.
+    onDrop: (accepted) => {
+      const images = filterUploads(accepted);
+      if (images.length) onFiles(images);
+    },
     onDropRejected,
-    accept: DROP_ACCEPT,
-    maxSize: MAX_INPUT_BYTES,
     multiple: true,
     disabled: busy,
   });
@@ -645,7 +743,7 @@ function SetDropzone({
         busy && "pointer-events-none opacity-60",
       )}
     >
-      <input {...getInputProps()} aria-label={`Upload ${title}`} />
+      <input {...getInputProps({ accept: ACCEPT_ATTR })} aria-label={`Upload ${title}`} />
       <div
         className={cn(
           "flex size-14 shrink-0 items-center justify-center rounded-xl text-white shadow-md",
@@ -662,10 +760,53 @@ function SetDropzone({
           )}
         </p>
         <p className="text-xs text-muted-foreground">{subtitle}</p>
-        <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-primary">
-          <Upload className="size-3" /> {isDragActive ? "Drop to add" : "Drop files or click to browse"}
+        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+          <span className="flex items-center gap-1 text-xs font-medium text-primary">
+            <Upload className="size-3" /> {isDragActive ? "Drop to add" : "Drop files or folders"}
+          </span>
+          <FolderButton onFiles={onFiles} disabled={busy} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ───────────────────────── Smart folder import ─────────────────────────
+
+/** Drop a whole tree (e.g. en/iphone, th/ipad): device + locale come from folder names and image sizes. */
+function FolderImportZone({ busy, onFiles }: { busy: boolean; onFiles: (files: File[]) => void }) {
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop: (accepted) => {
+      const images = filterUploads(accepted);
+      if (images.length) onFiles(images);
+    },
+    onDropRejected,
+    multiple: true,
+    noClick: true,
+    disabled: busy,
+  });
+  return (
+    <div
+      {...getRootProps()}
+      data-set="auto"
+      className={cn(
+        "flex flex-wrap items-center gap-3 rounded-2xl border border-dashed px-5 py-3.5 transition-all",
+        isDragActive ? "border-primary bg-primary/5 ring-4 ring-primary/15" : "border-border bg-card/40 hover:border-primary/40",
+        busy && "pointer-events-none opacity-60",
+      )}
+    >
+      <input {...getInputProps({ accept: ACCEPT_ATTR })} aria-label="Import folders" />
+      <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-sm">
+        <FolderTree className="size-4.5" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold">{isDragActive ? "Drop folders to import" : "Smart folder import"}</p>
+        <p className="text-xs text-muted-foreground">
+          Drop one or more folders, e.g. <code className="font-mono">en/iphone</code>, <code className="font-mono">th/ipad</code>.
+          Device and language are read from folder names and image sizes.
         </p>
       </div>
+      <FolderButton onFiles={onFiles} disabled={busy} label="Choose folder" variant="button" />
     </div>
   );
 }
