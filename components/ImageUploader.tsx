@@ -25,7 +25,6 @@ import { Card } from "@/components/ui/card";
 import { Segmented } from "@/components/Segmented";
 import { cn } from "@/lib/utils";
 import {
-  ACCEPTED_TYPES,
   MAX_INPUT_BYTES,
   createCanvas,
   drawComposition,
@@ -44,6 +43,7 @@ import {
 } from "@/utils/jobs";
 import { STORE_LABEL, evaluate, type DeviceClass, type Preset, type Size } from "@/utils/presets";
 import { detectAsset, scaleFactor, type Detection } from "@/utils/detect";
+import { partitionUploads, relPathOf } from "@/utils/uploads";
 
 const fmtBytes = (n: number) =>
   n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`;
@@ -601,47 +601,19 @@ function DetectionRow({
 // ───────────────────────── Files & folders ─────────────────────────
 
 const ACCEPT_ATTR = "image/png,image/jpeg,.png,.jpg,.jpeg";
-const IMAGE_EXT = /\.(png|jpe?g)$/i;
 
-/** Path inside the dropped/picked folder (e.g. "th/ipad/01.png"), or just the file name. */
-export function relPathOf(f: File): string {
-  const x = f as File & { path?: string; relativePath?: string };
-  return (x.relativePath || x.webkitRelativePath || x.path || f.name).replace(/^\.?\//, "");
-}
-
-const isHidden = (f: File) =>
-  relPathOf(f)
-    .split("/")
-    .some((seg) => seg.startsWith(".") || seg === "__MACOSX") || /^(thumbs\.db|desktop\.ini)$/i.test(f.name);
-
-/**
- * Filters a mixed batch (folders can contain anything): keeps PNG/JPEG under the size
- * limit, silently drops hidden/system files, and reports the rest in one summary toast.
- */
+/** Keeps PNG/JPEG under the size limit, drops hidden files, and reports the rest in one toast. */
 function filterUploads(files: File[]): File[] {
-  const visible = files.filter((f) => !isHidden(f));
-  const images: File[] = [];
-  let wrongType = 0;
-  let tooBig = 0;
-  for (const f of visible) {
-    const typeOk = ACCEPTED_TYPES.includes(f.type) || (!f.type && IMAGE_EXT.test(f.name));
-    if (!typeOk) wrongType++;
-    else if (f.size > MAX_INPUT_BYTES) tooBig++;
-    else images.push(f);
-  }
-  // Keep folder order: natural sort by path so 2.png comes before 10.png.
-  images.sort((a, b) => relPathOf(a).localeCompare(relPathOf(b), undefined, { numeric: true, sensitivity: "base" }));
-
-  const folders = new Set(images.map((f) => relPathOf(f).split("/").slice(0, -1).join("/")).filter(Boolean));
+  const { images, wrongType, tooBig, folders } = partitionUploads(files);
   const skipped = [
     wrongType && `${wrongType} not PNG/JPEG`,
     tooBig && `${tooBig} over ${MAX_INPUT_BYTES / 1048576} MB`,
   ].filter(Boolean);
   if (!images.length) {
     toast.error("No PNG or JPEG images found", { description: skipped.join(" · ") || undefined });
-  } else if (folders.size || skipped.length) {
+  } else if (folders || skipped.length) {
     toast.success(
-      `Imported ${images.length} image${images.length === 1 ? "" : "s"}${folders.size ? ` from ${folders.size} folder${folders.size === 1 ? "" : "s"}` : ""}`,
+      `Imported ${images.length} image${images.length === 1 ? "" : "s"}${folders ? ` from ${folders} folder${folders === 1 ? "" : "s"}` : ""}`,
       { description: skipped.length ? `Skipped ${skipped.join(" · ")}` : undefined },
     );
   }

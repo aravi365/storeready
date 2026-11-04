@@ -116,8 +116,8 @@ const slug = (name: string) =>
   name
     .replace(/\.[^.]+$/, "")
     .replace(/^\d+[\s._-]*/, "") // keep our own NN_ ordering prefix only
-    .normalize("NFKD")
-    .replace(/[^\p{L}\p{N}]+/gu, "_")
+    .normalize("NFC")
+    .replace(/[^\p{L}\p{M}\p{N}]+/gu, "_") // keep combining marks (Thai vowels/tones)
     .replace(/^_+|_+$/g, "")
     .slice(0, 48)
     .toLowerCase() || "image";

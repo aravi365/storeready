@@ -22,6 +22,7 @@ Free, private, in-browser tool that resizes App Store and Google Play screenshot
 npm install
 npm run dev      # http://localhost:3000
 npm run build && npm start
+npm test         # unit tests (Vitest)
 ```
 
 ## How it works

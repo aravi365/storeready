@@ -1,0 +1,169 @@
+import { describe, expect, it } from "vitest";
+import {
+  DEFAULT_SETTINGS,
+  buildJobs,
+  inferMetadata,
+  jobSig,
+  renderOptionsFor,
+  resolveOrientation,
+  targetsFor,
+  type Asset,
+  type GlobalSettings,
+} from "@/utils/jobs";
+import type { Store } from "@/utils/presets";
+
+let n = 0;
+function asset(p: Partial<Asset> = {}): Asset {
+  return {
+    id: `a${n++}`,
+    file: new File([], p.name ?? "shot.png"),
+    name: "shot.png",
+    thumbUrl: "",
+    status: "ready",
+    width: 1320,
+    height: 2868,
+    deviceClass: "phone",
+    locale: "en",
+    category: "screenshot",
+    orientation: "auto",
+    analysis: { hasTransparency: false, focus: { x: 0.4, y: 0.6 } },
+    ...p,
+  };
+}
+const settings = (p: Partial<GlobalSettings> = {}): GlobalSettings => ({ ...DEFAULT_SETTINGS, ...p });
+
+describe("resolveOrientation", () => {
+  it("auto follows the source shape", () => {
+    expect(resolveOrientation({ orientation: "auto", width: 100, height: 200 })).toBe("portrait");
+    expect(resolveOrientation({ orientation: "auto", width: 200, height: 100 })).toBe("landscape");
+    expect(resolveOrientation({ orientation: "auto", width: 100, height: 100 })).toBe("portrait");
+  });
+  it("explicit choice wins", () => {
+    expect(resolveOrientation({ orientation: "landscape", width: 100, height: 200 })).toBe("landscape");
+  });
+});
+
+describe("targetsFor", () => {
+  it("phone screenshot → default iPhone 6.9 + Play phone", () => {
+    expect(targetsFor(asset(), settings()).map((t) => `${t.preset.id} ${t.size.w}x${t.size.h}`)).toEqual([
+      "as_iphone_69 1320x2868",
+      "gp_phone 1080x1920",
+    ]);
+  });
+  it("tablet screenshot → iPad 13 + Play 10-inch", () => {
+    expect(targetsFor(asset({ deviceClass: "tablet" }), settings()).map((t) => t.preset.id)).toEqual(["as_ipad_13", "gp_tablet_10"]);
+  });
+  it("landscape sources get landscape targets", () => {
+    const t = targetsFor(asset({ width: 2868, height: 1320 }), settings());
+    expect(t.map((x) => x.size)).toEqual([{ w: 2868, h: 1320 }, { w: 1920, h: 1080 }]);
+  });
+  it("feature graphic → only the 1024×500 preset", () => {
+    expect(targetsFor(asset({ category: "feature_graphic", width: 1024, height: 500 }), settings()).map((t) => t.preset.id)).toEqual(["gp_feature"]);
+  });
+  it("no feature graphic when Play is switched off", () => {
+    const s = settings({ stores: new Set<Store>(["app_store"]) });
+    expect(targetsFor(asset({ category: "feature_graphic" }), s)).toEqual([]);
+  });
+});
+
+describe("renderOptionsFor", () => {
+  it("uses the global mode for screenshots and featureMode for feature graphics", () => {
+    const s = settings({ mode: "fit", featureMode: "fill" });
+    expect(renderOptionsFor(asset(), s).mode).toBe("fit");
+    expect(renderOptionsFor(asset({ category: "feature_graphic" }), s).mode).toBe("fill");
+  });
+  it("per-asset overrides win", () => {
+    const o = renderOptionsFor(asset({ mode: "stretch", backdrop: "solid" }), settings({ backdrop: "blur" }));
+    expect(o).toMatchObject({ mode: "stretch", backdrop: "solid" });
+  });
+  it("smart crop passes the detected focus, or none when off", () => {
+    expect(renderOptionsFor(asset(), settings({ smartCrop: true })).focus).toEqual({ x: 0.4, y: 0.6 });
+    expect(renderOptionsFor(asset(), settings({ smartCrop: false })).focus).toBeUndefined();
+  });
+});
+
+describe("buildJobs", () => {
+  it("builds the spec folder layout with per-folder numbering", () => {
+    const jobs = buildJobs(
+      [
+        asset({ name: "01_home.png" }),
+        asset({ name: "02_settings.png" }),
+        asset({ name: "home.png", locale: "th" }),
+        asset({ name: "ipad.png", deviceClass: "tablet", width: 2064, height: 2752 }),
+        asset({ name: "banner.png", category: "feature_graphic", width: 1024, height: 500 }),
+      ],
+      settings(),
+    );
+    expect(jobs.map((j) => j.pathStem)).toEqual([
+      "app-store-assets/app_store/en/iphone_6.9/01_home_1320x2868",
+      "app-store-assets/play_store/en/phone/01_home_1080x1920",
+      "app-store-assets/app_store/en/iphone_6.9/02_settings_1320x2868",
+      "app-store-assets/play_store/en/phone/02_settings_1080x1920",
+      "app-store-assets/app_store/th/iphone_6.9/01_home_1320x2868",
+      "app-store-assets/play_store/th/phone/01_home_1080x1920",
+      "app-store-assets/app_store/en/ipad_13/01_ipad_2064x2752",
+      "app-store-assets/play_store/en/tablet_10in/01_ipad_1440x2560",
+      "app-store-assets/play_store/en/feature_graphic/01_banner_1024x500",
+    ]);
+  });
+
+  it("skips assets that are decoding, failed, or in a locale that is switched off", () => {
+    const jobs = buildJobs(
+      [asset({ status: "decoding" }), asset({ status: "error" }), asset({ locale: "th" }), asset({ name: "ok.png" })],
+      settings({ locales: new Set(["en"]) }),
+    );
+    expect(jobs).toHaveLength(2);
+    expect(jobs.every((j) => j.pathStem.includes("_ok_"))).toBe(true);
+  });
+
+  it("sets the 8 MB cap for Play jobs only", () => {
+    const jobs = buildJobs([asset()], settings());
+    expect(jobs.find((j) => j.preset.store === "play_store")!.enc.maxBytes).toBe(8 * 1024 * 1024);
+    expect(jobs.find((j) => j.preset.store === "app_store")!.enc.maxBytes).toBeUndefined();
+  });
+
+  it("gives each asset/preset pair a stable, unique id", () => {
+    const a = asset();
+    const ids = buildJobs([a, asset()], settings()).map((j) => j.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids[0]).toBe(`${a.id}:as_iphone_69`);
+  });
+});
+
+describe("file name slugs", () => {
+  const stem = (name: string) => buildJobs([asset({ name })], settings())[0].pathStem.split("/").pop();
+  it.each([
+    ["01_home.png", "01_home_1320x2868"],
+    ["10 - Settings Screen.PNG", "01_settings_screen_1320x2868"],
+    ["Home (Dark Mode).jpeg", "01_home_dark_mode_1320x2868"],
+    ["123.png", "01_image_1320x2868"],
+    ["___.png", "01_image_1320x2868"],
+  ])("%s → %s", (name, expected) => expect(stem(name)).toBe(expected));
+
+  it("keeps Thai names readable (including vowel and tone marks)", () => {
+    expect(stem("หน้าแรก.png")).toBe("01_หน้าแรก_1320x2868");
+  });
+  it("keeps accented Latin letters", () => {
+    expect(stem("Café Menü.png")).toBe("01_café_menü_1320x2868");
+  });
+  it("caps very long names", () => {
+    expect(stem(`${"a".repeat(200)}.png`)!.length).toBeLessThanOrEqual(48 + "01__1320x2868".length);
+  });
+});
+
+describe("jobSig", () => {
+  it("changes when render options change, so stale outputs are re-rendered", () => {
+    const [a] = buildJobs([asset()], settings({ matte: "#FFFFFF" }));
+    const [b] = buildJobs([asset({ id: a.assetId })], settings({ matte: "#000000" }));
+    const [c] = buildJobs([asset({ id: a.assetId })], settings({ matte: "#FFFFFF" }));
+    expect(jobSig(a)).not.toBe(jobSig(b));
+    expect(jobSig(a)).toBe(jobSig(c));
+  });
+});
+
+describe("inferMetadata", () => {
+  it("guesses from the name before the image is decoded", () => {
+    expect(inferMetadata("th/ipad/01.png")).toEqual({ category: "screenshot", deviceClass: "tablet", locale: "th" });
+    expect(inferMetadata("feature_en.png").category).toBe("feature_graphic");
+  });
+});
