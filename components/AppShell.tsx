@@ -1,15 +1,19 @@
 "use client";
 
-import { useState } from "react";
-import { FileText, Images, ShieldCheck, Sparkles } from "lucide-react";
+import { useEffect, useState } from "react";
+import { FileText, Images, MonitorSmartphone, ShieldCheck, Sparkles } from "lucide-react";
 import { IconGenerator } from "@/components/IconGenerator";
 import { ListingStudio } from "@/components/ListingStudio";
+import { StorePreview } from "@/components/StorePreview";
 import { ScreenshotStudio } from "@/components/ScreenshotStudio";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { FontSizeControl } from "@/components/FontSizeControl";
 import { cn } from "@/lib/utils";
 
-type Tab = "screenshots" | "icons" | "listing";
+type Tab = "screenshots" | "icons" | "listing" | "preview";
+
+/** Other tools can switch tabs with: window.dispatchEvent(new CustomEvent("storeready:tab", { detail: "preview" })) */
+export const TAB_EVENT = "storeready:tab";
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode; title: string; intro: string }[] = [
   {
@@ -35,10 +39,29 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode; title: string; intr
     intro:
       "Paste your app name, descriptions and keywords. StoreReady checks them against Apple's App Review Guidelines and Google Play's metadata policy, explains each problem, and fixes what it safely can.",
   },
+  {
+    id: "preview",
+    label: "Store Preview",
+    icon: <MonitorSmartphone className="size-4" />,
+    title: "See it in the store, before you upload",
+    intro:
+      "Your screenshots, icon and listing text on App Store and Google Play product pages, on iPhone, iPad, Android phones and tablets, in light or dark mode and every language you've added.",
+  },
 ];
 
 export function AppShell() {
   const [tab, setTab] = useState<Tab>("screenshots");
+  useEffect(() => {
+    const onTab = (e: Event) => {
+      const next = (e as CustomEvent<Tab>).detail;
+      if (TABS.some((t) => t.id === next)) {
+        setTab(next);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    };
+    window.addEventListener(TAB_EVENT, onTab);
+    return () => window.removeEventListener(TAB_EVENT, onTab);
+  }, []);
 
   return (
     <div className="min-h-screen">
@@ -69,7 +92,7 @@ export function AppShell() {
                 )}
               >
                 {t.icon}
-                <span className="hidden md:inline">{t.label}</span>
+                <span className="hidden lg:inline">{t.label}</span>
               </button>
             ))}
           </nav>
@@ -109,6 +132,9 @@ export function AppShell() {
         </div>
         <div hidden={tab !== "listing"}>
           <ListingStudio />
+        </div>
+        <div hidden={tab !== "preview"}>
+          <StorePreview onNavigate={setTab} />
         </div>
 
       </main>

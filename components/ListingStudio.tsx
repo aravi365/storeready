@@ -37,6 +37,7 @@ import { buildFastlaneZip } from "@/utils/listingExport";
 import type { Locale } from "@/utils/presets";
 import { DEFAULT_LANGUAGE, detectLanguage, languageName, normalizeLanguage } from "@/utils/languages";
 import { LanguageSelect } from "@/components/LanguageSelect";
+import { previewStore } from "@/utils/previewStore";
 
 const STORAGE_KEY = "storeshot:listing:v2";
 const LEGACY_KEY = "storeshot:listing:v1";
@@ -138,6 +139,11 @@ export function ListingStudio() {
     } catch {
       /* storage blocked: drafts just won't persist */
     }
+  }, [saved, loaded]);
+
+  // Share the text with the Store Preview tab.
+  useEffect(() => {
+    if (loaded) previewStore.setListings(saved.drafts, saved.company);
   }, [saved, loaded]);
 
   const listing = saved.drafts[locale] ?? EMPTY_LISTING;

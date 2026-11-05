@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { CheckCircle2, FileArchive, Folder, FolderOpen, Loader2, Square, XCircle, Zap } from "lucide-react";
+import { CheckCircle2, FileArchive, Folder, FolderOpen, Loader2, MonitorSmartphone, Square, XCircle, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -11,6 +11,7 @@ import { OutputsTable } from "@/components/OutputsTable";
 import { OutputLightbox, type LightboxItem } from "@/components/OutputLightbox";
 import { ReadinessPanel } from "@/components/ReadinessPanel";
 import { checkReadiness } from "@/utils/readiness";
+import { previewStore, type PreviewShot } from "@/utils/previewStore";
 import { languageName, storeLocale } from "@/utils/languages";
 import { PresetSelector } from "@/components/PresetSelector";
 import {
@@ -296,6 +297,29 @@ export function ScreenshotStudio() {
   );
   const outputForJob = useCallback((j: Job) => validOutput(j, outputs), [outputs, validOutput]);
 
+  // Publish rendered screenshots to the Store Preview tab.
+  useEffect(() => {
+    const order = new Map(assets.map((a, i) => [a.id, i]));
+    const shots: PreviewShot[] = [];
+    for (const j of jobs) {
+      const o = validOutput(j, outputs);
+      if (o?.status !== "done" || !o.url) continue;
+      shots.push({
+        jobId: j.id,
+        store: j.preset.store,
+        presetId: j.preset.id,
+        deviceClass: j.preset.deviceClass,
+        category: j.preset.category,
+        locale: j.locale,
+        width: o.width ?? j.size.w,
+        height: o.height ?? j.size.h,
+        url: o.url,
+        order: order.get(j.assetId) ?? 0,
+      });
+    }
+    previewStore.setShots(shots);
+  }, [jobs, outputs, assets, validOutput]);
+
   const languagesInUse = useMemo(() => [...new Set(assets.map((a) => a.locale))].sort((a, b) => languageName(a).localeCompare(languageName(b))), [assets]);
 
   // ───────── Store-readiness checklist ─────────
@@ -507,11 +531,21 @@ function ExportPanel({
           </div>
         )}
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button className="flex-1" size="lg" disabled={exporting || !jobs.length} onClick={onExport}>
             {exporting ? <Loader2 className="animate-spin" /> : readyCount === jobs.length && jobs.length ? <Zap /> : <FileArchive />}
             {exporting ? "Exporting…" : "Download ZIP"}
           </Button>
+          {readyCount > 0 && (
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => window.dispatchEvent(new CustomEvent("storeready:tab", { detail: "preview" }))}
+              title="See these screenshots on App Store and Google Play pages"
+            >
+              <MonitorSmartphone /> Preview in stores
+            </Button>
+          )}
           {run.phase === "rendering" && (
             <Button variant="outline" size="lg" onClick={onCancel} aria-label="Cancel rendering">
               <Square /> Cancel

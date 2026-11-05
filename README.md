@@ -17,6 +17,7 @@ Free, private, in-browser tool that resizes App Store and Google Play screenshot
 - **Edge extension (default Fit):** never crops and never adds bars. The canvas grows by continuing the screenshot's own background from its plainest edge (outermost rows averaged, lightly blurred, with a short feathered blend), and every output gets automatic checks: seam brightness, no black lines, nothing cropped, no transparency. Override the side per image (top, bottom, both, left, right). Blurred and solid letterbox, Fill (smart crop) and Stretch are still available.
 - **Custom sizes and file names:** add any W×H; outputs keep the original file name with a size suffix (or plain names, or numbered).
 - **Auto-generated outputs** with a table of every file, and one ZIP sorted by store, language and device.
+- **Store Preview tab:** your screenshots, icon and listing text on App Store and Google Play product pages, in iPhone, iPad, Android phone and Android tablet frames, light or dark, per language (ratings and downloads are placeholders).
 - **Full-size preview popup** for any generated file (100% zoom, arrow-key browsing, compliance details, download).
 - **Remove individual outputs:** drop one size for one image (e.g. keep iPad 13″, skip Play 10″ tablet) with Undo and Restore.
 - **Android tablets optional:** one switch skips all Google Play tablet sizes (phone screenshots alone are enough to publish).

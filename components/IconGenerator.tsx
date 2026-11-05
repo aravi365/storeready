@@ -25,6 +25,7 @@ import {
   type IconSettings,
   type IconSource,
 } from "@/utils/iconGenerator";
+import { previewStore } from "@/utils/previewStore";
 
 const DEFAULTS: IconSettings = {
   framework: "flutter",
@@ -79,6 +80,28 @@ export function IconGenerator() {
   });
 
   const plan = useMemo(() => (src ? planIcons(s, src) : null), [s, src]);
+
+  // Share a rendered icon with the Store Preview tab (debounced: sliders fire often).
+  useEffect(() => {
+    if (!src) {
+      previewStore.setIcon(undefined);
+      return;
+    }
+    let url = "";
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      const c = drawIcon(src.bitmap, 512, { bg: s.background, scale: s.iosScale, shape: "square" });
+      const blob = "convertToBlob" in c ? await c.convertToBlob({ type: "image/png" }) : await new Promise<Blob>((r) => (c as HTMLCanvasElement).toBlob((b) => r(b!), "image/png"));
+      if (cancelled) return;
+      url = URL.createObjectURL(blob);
+      previewStore.setIcon({ apple: url, play: url });
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+      if (url) setTimeout(() => URL.revokeObjectURL(url), 1000);
+    };
+  }, [src, s.background, s.iosScale]);
   const roots = layoutRoots(s);
   const hexOk = /^#[0-9a-f]{6}$/i.test(s.background);
 
