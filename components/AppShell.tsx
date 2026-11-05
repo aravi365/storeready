@@ -18,7 +18,7 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode; title: string; intr
     icon: <Images className="size-4" />,
     title: "Upload-ready screenshots in one drop",
     intro:
-      "Drop your mobile and iPad sets. StoreShot detects each image, scales it to every App Store and Google Play size, flattens any transparency, and checks each file against the store rules.",
+      "Drop your mobile and iPad sets. StoreReady detects each image, scales it to every App Store and Google Play size, flattens any transparency, and checks each file against the store rules.",
   },
   {
     id: "icons",
@@ -33,7 +33,7 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode; title: string; intr
     icon: <FileText className="size-4" />,
     title: "Listing text that passes review",
     intro:
-      "Paste your app name, descriptions and keywords. StoreShot checks them against Apple's App Review Guidelines and Google Play's metadata policy, explains each problem, and fixes what it safely can.",
+      "Paste your app name, descriptions and keywords. StoreReady checks them against Apple's App Review Guidelines and Google Play's metadata policy, explains each problem, and fixes what it safely can.",
   },
 ];
 
@@ -49,8 +49,8 @@ export function AppShell() {
               <Images className="size-5" />
             </div>
             <div className="hidden leading-tight sm:block">
-              <p className="font-semibold tracking-tight">StoreShot</p>
-              <p className="text-xs text-muted-foreground">Store assets, sized and checked</p>
+              <p className="font-semibold tracking-tight">StoreReady</p>
+              <p className="text-xs text-muted-foreground">Store assets, ready to submit</p>
             </div>
           </div>
 

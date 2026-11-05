@@ -1,12 +1,12 @@
-# StoreShot · App Store & Google Play screenshot resizer + app icon generator
+# StoreReady · App Store & Google Play screenshots, app icons and listing text, ready to submit
 
-**Live:** https://aravi365.github.io/storeshot/
+**Live:** https://aravi365.github.io/storeready/
 
 Free, private, in-browser tool that resizes App Store and Google Play screenshots to every required size, strips the alpha channel, checks each file against the store rules, and packages everything into a ready-to-upload ZIP. It also generates iOS and Android app icons for Flutter, React Native and Expo projects. Nothing is uploaded: all processing happens in your browser.
 
-![StoreShot screenshot resizer: Mobile and iPad upload sets, smart folder import, detected device, live previews and the ZIP folder tree](docs/screenshots-tab.jpg)
+![StoreReady screenshot resizer: Mobile and iPad upload sets, smart folder import, detected device, live previews and the ZIP folder tree](docs/screenshots-tab.jpg)
 
-![StoreShot app icon generator: iOS and Android icon previews with the adaptive-icon safe zone and Flutter project layout](docs/app-icons-tab.jpg)
+![StoreReady app icon generator: iOS and Android icon previews with the adaptive-icon safe zone and Flutter project layout](docs/app-icons-tab.jpg)
 
 ## Features
 - **Every 2026 store size:** iPhone 6.9″ (1320×2868) and the required 6.3″ (1206×2622), iPhone Duo foldable (outer 1398×2034 and inner 2007×2853), iPad 13″ (2064×2752), Google Play phone, 7″ and 10″ tablet, and the 1024×500 feature graphic, in portrait or landscape.

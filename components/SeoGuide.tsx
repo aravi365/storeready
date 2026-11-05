@@ -8,15 +8,15 @@ import { PRESETS } from "@/utils/presets";
 export const FAQ: { q: string; a: string }[] = [
   {
     q: "What screenshot size does the App Store require in 2026?",
-    a: "App Store Connect requires at least one screenshot for the medium Dynamic Island iPhone display: 1206×2622 or 1179×2556 px (6.3-inch, portrait, or the landscape equivalents). Most apps also upload the large display at 1320×2868 px (6.9-inch; 1290×2796 and 1260×2736 are accepted there too). If your app runs on iPad, add 13-inch iPad screenshots at 2064×2752 or 2048×2732 px. StoreShot exports the 6.3-inch, 6.9-inch and 13-inch sets by default.",
+    a: "App Store Connect requires at least one screenshot for the medium Dynamic Island iPhone display: 1206×2622 or 1179×2556 px (6.3-inch, portrait, or the landscape equivalents). Most apps also upload the large display at 1320×2868 px (6.9-inch; 1290×2796 and 1260×2736 are accepted there too). If your app runs on iPad, add 13-inch iPad screenshots at 2064×2752 or 2048×2732 px. StoreReady exports the 6.3-inch, 6.9-inch and 13-inch sets by default.",
   },
   {
     q: "What screenshot sizes does iPhone Duo (the foldable iPhone) need?",
-    a: "iPhone Duo has two displays, and App Store Connect takes a set for each: the outer (folded) display at 1398×2034 px and the inner (unfolded) display at 2007×2853 px, in portrait or landscape. Uploading them adds an \u201coptimized for iPhone Duo\u201d badge to your product page, and they become required from April 2027 for apps built with the iOS 27.1 SDK or later. Drop images into StoreShot\u2019s iPhone Duo set to get both sizes.",
+    a: "iPhone Duo has two displays, and App Store Connect takes a set for each: the outer (folded) display at 1398×2034 px and the inner (unfolded) display at 2007×2853 px, in portrait or landscape. Uploading them adds an \u201coptimized for iPhone Duo\u201d badge to your product page, and they become required from April 2027 for apps built with the iOS 27.1 SDK or later. Drop images into StoreReady\u2019s iPhone Duo set to get both sizes.",
   },
   {
     q: "Why does App Store Connect reject my PNG screenshots?",
-    a: "The most common reasons are a wrong pixel size or an alpha channel. Apple rejects images that contain transparency or an alpha channel, even if every pixel is opaque. Browsers and many design tools save RGBA PNGs by default. StoreShot flattens every image onto a solid background and writes a true 24-bit RGB PNG.",
+    a: "The most common reasons are a wrong pixel size or an alpha channel. Apple rejects images that contain transparency or an alpha channel, even if every pixel is opaque. Browsers and many design tools save RGBA PNGs by default. StoreReady flattens every image onto a solid background and writes a true 24-bit RGB PNG.",
   },
   {
     q: "What are the Google Play screenshot requirements?",
@@ -28,7 +28,7 @@ export const FAQ: { q: string; a: string }[] = [
   },
   {
     q: "Can I mention Android or Google Play in my App Store description?",
-    a: "No. App Review Guideline 2.3.10 says not to include names, icons or imagery of other mobile platforms or alternative app marketplaces in your app or metadata. StoreShot\u2019s Listing Text tab flags these and can remove the sentences for you.",
+    a: "No. App Review Guideline 2.3.10 says not to include names, icons or imagery of other mobile platforms or alternative app marketplaces in your app or metadata. StoreReady\u2019s Listing Text tab flags these and can remove the sentences for you.",
   },
   {
     q: "Are emoji allowed in App Store and Google Play listings?",
@@ -40,7 +40,7 @@ export const FAQ: { q: string; a: string }[] = [
   },
   {
     q: "Are my images uploaded to a server?",
-    a: "No. StoreShot runs entirely in your browser using the Canvas API and Web Workers. Your screenshots and icons never leave your device.",
+    a: "No. StoreReady runs entirely in your browser using the Canvas API and Web Workers. Your screenshots and icons never leave your device.",
   },
   {
     q: "Can it generate app icons for Flutter and React Native?",
@@ -69,7 +69,7 @@ export function SeoGuide() {
           App Store &amp; Google Play screenshot sizes (2026 guide)
         </h2>
         <p className="mt-2 max-w-3xl text-muted-foreground">
-          The exact sizes StoreShot exports, checked against Apple&apos;s App Store Connect and Google&apos;s Play
+          The exact sizes StoreReady exports, checked against Apple&apos;s App Store Connect and Google&apos;s Play
           Console help pages in November 2026. Drop your images above and every size below is generated for you.
         </p>
 
@@ -93,7 +93,7 @@ export function SeoGuide() {
             <h3 className="text-lg font-semibold">How to resize screenshots for the App Store and Play Store</h3>
             <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm text-muted-foreground">
               <li>Drop your phone screenshots into the Mobile set, iPad screenshots into the iPad / Tablet set and foldable screenshots into the iPhone Duo set, or drop whole folders (for example en-US/iphone and ja/ipad) into Smart folder import.</li>
-              <li>StoreShot detects each device from its resolution and the language from folder and file names (any of the 50 App Store languages, e.g. ja/, de-DE, home_fr.png).</li>
+              <li>StoreReady detects each device from its resolution and the language from folder and file names (any of the 50 App Store languages, e.g. ja/, de-DE, home_fr.png).</li>
               <li>Choose Fit, Fill (smart crop) or Stretch. Fit keeps the whole image: if the shapes differ by under 1% it fills the frame with an even hairline trim, otherwise it adds background only where needed. Transparency is flattened automatically.</li>
               <li>Check the compliance badge on each preview, then download one ZIP sorted by store, language and device.</li>
             </ol>
@@ -119,7 +119,7 @@ export function SeoGuide() {
         <p>All processing happens in your browser. Nothing is uploaded.</p>
         <p>
           Open source on{" "}
-          <a className="underline hover:text-foreground" href="https://github.com/aravi365/storeshot">
+          <a className="underline hover:text-foreground" href="https://github.com/aravi365/storeready">
             GitHub
           </a>
           . Not affiliated with Apple or Google.

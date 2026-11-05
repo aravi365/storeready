@@ -46,7 +46,7 @@ export async function buildZip(
 
   const manifest = {
     generatedAt: new Date().toISOString(),
-    generator: "StoreShot",
+    generator: "StoreReady",
     totals: {
       files: entries.length,
       bytes: entries.reduce((n, e) => n + e.blob.size, 0),

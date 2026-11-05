@@ -1,5 +1,5 @@
 {
-  "name": "storeshot",
+  "name": "storeready",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -43,10 +43,10 @@
     "vitest": "^3.2.7"
   },
   "description": "Free in-browser App Store & Google Play screenshot resizer and iOS/Android app icon generator for Flutter, React Native and Expo.",
-  "homepage": "https://aravi365.github.io/storeshot/",
+  "homepage": "https://aravi365.github.io/storeready/",
   "repository": {
     "type": "git",
-    "url": "https://github.com/aravi365/storeshot.git"
+    "url": "https://github.com/aravi365/storeready.git"
   },
   "keywords": [
     "app-store-screenshots",

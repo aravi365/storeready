@@ -1,8 +1,8 @@
 /** Public site URL, used for canonical links, the sitemap and social cards. */
-export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://aravi365.github.io/storeshot").replace(/\/$/, "");
+export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://aravi365.github.io/storeready").replace(/\/$/, "");
 export const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
-export const SITE_NAME = "StoreShot";
-export const SITE_TITLE = "App Store & Google Play Screenshot Resizer + App Icon Generator";
+export const SITE_NAME = "StoreReady";
+export const SITE_TITLE = "App Store Screenshot Resizer, Icon Generator & Listing Checker";
 export const SITE_DESCRIPTION =
   "Free, private, in-browser tool to resize App Store and Google Play screenshots to every required size (iPhone 6.9\" and 6.3\", iPhone Duo foldable, iPad 13\", Play phone, tablet, feature graphic), strip alpha, and generate iOS + Android app icons for Flutter, React Native and Expo.";
 export const KEYWORDS = [
