@@ -15,6 +15,7 @@ describe("exact resolution matches", () => {
     [1640, 2360, "tablet", /Air/],
     [1080, 1920, "phone", /Android/],
     [1600, 2560, "tablet", /10/],
+    [3840, 2400, "xr", /Android XR/],
     [1398, 2034, "foldable", /Duo outer/],
     [2007, 2853, "foldable", /Duo inner/],
     [2853, 2007, "foldable", /Duo inner/],
@@ -65,6 +66,11 @@ describe("file and folder name hints", () => {
   it("tab as its own word counts, but not inside other words", () => {
     expect(d("tab/home.png", 900, 1600).deviceClass).toBe("tablet");
     expect(d("table_view.png", 900, 1600).deviceClass).toBe("phone");
+  });
+  it("xr / headset names mark Android XR, but not words that contain them", () => {
+    expect(d("android_xr/01.png", 2000, 1250).deviceClass).toBe("xr");
+    expect(d("headset/01.png", 2000, 1250).deviceClass).toBe("xr");
+    expect(d("xray_scanner.png", 900, 1600).deviceClass).toBe("phone");
   });
   it("duo / fold folder names mark a foldable", () => {
     expect(d("en/iphone_duo/01.png", 1500, 2100).deviceClass).toBe("foldable");

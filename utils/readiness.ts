@@ -13,6 +13,7 @@
  *   • Exactly one feature graphic (1024×500) is required to publish
  *   • Large screens (tablets): at least 4 screenshots
  *   • Promotion eligibility: at least 4 phone screenshots at 9:16 / 16:9, ≥1080 px
+ *   • Android XR: between 4 and 8 screenshots (only checked when you add XR screenshots)
  */
 import type { Job, OutputState } from "./jobs";
 import { checkDimensions, type Locale, type Store } from "./presets";
@@ -46,6 +47,7 @@ export const LIMITS = {
   playMaxPerType: 8,
   playLargeScreenMin: 4,
   playPromoMin: 4,
+  playXrMin: 4,
 } as const;
 
 /** App Store Connect counts accepted alternative sizes in the same slot. */
@@ -61,7 +63,17 @@ const APPLE_SLOT: Record<string, { slot: string; name: string }> = {
 };
 
 const PLAY_TYPE = (presetId: string) =>
-  presetId === "gp_feature" ? "feature" : presetId === "gp_phone" ? "phone" : presetId.startsWith("gp_tablet_7") ? "tablet_7" : "tablet_10";
+  presetId === "gp_feature"
+    ? "feature"
+    : presetId === "gp_phone"
+      ? "phone"
+      : presetId === "gp_xr"
+        ? "xr"
+        : presetId.startsWith("gp_tablet_7")
+          ? "tablet_7"
+          : "tablet_10";
+
+const PLAY_TYPE_NAME: Record<string, string> = { phone: "phone", tablet_7: "7″ tablet", tablet_10: "10″ tablet", xr: "Android XR" };
 
 
 export function checkReadiness(
@@ -165,7 +177,7 @@ export function checkReadiness(
             level: "error",
             store: "play_store",
             locale,
-            title: `${L}: ${list.length} ${type === "phone" ? "phone" : type === "tablet_7" ? '7″ tablet' : '10″ tablet'} screenshots (max ${LIMITS.playMaxPerType})`,
+            title: `${L}: ${list.length} ${PLAY_TYPE_NAME[type]} screenshots (max ${LIMITS.playMaxPerType})`,
             detail: `Play Console accepts up to ${LIMITS.playMaxPerType} per device type. Remove ${list.length - LIMITS.playMaxPerType}.`,
           });
         }
@@ -187,6 +199,17 @@ export function checkReadiness(
           locale,
           title: `${L}: ${features.length} feature graphics (only 1 allowed)`,
           detail: "Keep one feature graphic per language and remove the others.",
+        });
+      }
+      const xr = byType.get("xr")?.length ?? 0;
+      if (xr > 0 && xr < LIMITS.playXrMin) {
+        add({
+          id: `play-${locale}-xr-few`,
+          level: "error",
+          store: "play_store",
+          locale,
+          title: `${L}: ${xr} Android XR screenshot${xr === 1 ? "" : "s"} (need ${LIMITS.playXrMin}–${LIMITS.playMaxPerType})`,
+          detail: "Google Play requires between 4 and 8 Android XR screenshots to showcase an XR app. Add more, or remove them if you don't target XR.",
         });
       }
       for (const type of ["tablet_7", "tablet_10"]) {

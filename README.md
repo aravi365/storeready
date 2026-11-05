@@ -9,9 +9,9 @@ Free, private, in-browser tool that resizes App Store and Google Play screenshot
 ![StoreReady app icon generator: iOS and Android icon previews with the adaptive-icon safe zone and Flutter project layout](docs/app-icons-tab.jpg)
 
 ## Features
-- **Every 2026 store size:** iPhone 6.9″ (1320×2868) and the required 6.3″ (1206×2622), iPhone Duo foldable (outer 1398×2034 and inner 2007×2853), iPad 13″ (2064×2752), Google Play phone, 7″ and 10″ tablet, and the 1024×500 feature graphic, in portrait or landscape.
+- **Every 2026 store size:** iPhone 6.9″ (1320×2868) and the required 6.3″ (1206×2622), iPhone Duo foldable (outer 1398×2034 and inner 2007×2853), iPad 13″ (2064×2752), Google Play phone, 7″ and 10″ tablet, Android XR (3840×2400, 8:5), and the 1024×500 feature graphic, in portrait or landscape.
 - **Every App Store and Google Play language:** all 50 App Store Connect localizations, detected from folder/file names for screenshots and from pasted text in Listing Text. ZIP and fastlane folders use each store's own locale codes (`ja` / `ja-JP`, `zh-Hans` / `zh-CN`…).
-- **Upload files or whole folders:** drop into the Mobile, iPad / Tablet or iPhone Duo set, or use **Smart folder import** with a tree like `en/iphone`, `th/ipad`. You can drop several folders at once, or pick them one after another. Hidden and non-image files are skipped.
+- **Upload files or whole folders:** drop into the Mobile, iPad / Tablet, iPhone Duo or Android XR set, or use **Smart folder import** with a tree like `en/iphone`, `th/ipad`. You can drop several folders at once, or pick them one after another. Hidden and non-image files are skipped.
 - **Auto-detection:** device from the exact pixel size (about 30 known iPhone, iPad and Android resolutions), then aspect ratio; language (any of the 50 App Store languages) and type from file and folder names; warnings for oversized or low-resolution sources.
 - **Store-compliant output:** true 24-bit RGB PNG (no alpha) or JPEG, a size cap for Google Play, and a compliance badge on every file.
 - **Fit, Fill or Stretch:** Fit keeps the whole image, adding background only where shapes really differ; under a 1% difference it fills edge to edge with an even hairline trim instead of thin bars. Fill smart-crops; Stretch distorts.

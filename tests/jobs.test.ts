@@ -54,8 +54,8 @@ describe("targetsFor", () => {
       "gp_phone 1080x1920",
     ]);
   });
-  it("tablet screenshot → iPad 13 + Play 10-inch", () => {
-    expect(targetsFor(asset({ deviceClass: "tablet" }), settings()).map((t) => t.preset.id)).toEqual(["as_ipad_13", "gp_tablet_10"]);
+  it("tablet screenshot → iPad 13 + Play 10-inch + Play 7-inch", () => {
+    expect(targetsFor(asset({ deviceClass: "tablet" }), settings()).map((t) => t.preset.id)).toEqual(["as_ipad_13", "gp_tablet_10", "gp_tablet_7"]);
   });
   it("iPhone Duo screenshot → outer and inner display sizes", () => {
     const t = targetsFor(asset({ deviceClass: "foldable", width: 2007, height: 2853 }), settings());
@@ -119,6 +119,7 @@ describe("buildJobs", () => {
       "app-store-assets/play_store/th/phone/01_home_1080x1920",
       "app-store-assets/app_store/en-US/ipad_13/01_ipad_2064x2752",
       "app-store-assets/play_store/en-US/tablet_10in/01_ipad_1440x2560",
+      "app-store-assets/play_store/en-US/tablet_7in/01_ipad_1080x1920",
       "app-store-assets/play_store/en-US/feature_graphic/01_banner_1024x500",
       "app-store-assets/app_store/th/iphone_duo_outer/01_duo_1398x2034",
       "app-store-assets/app_store/th/iphone_duo_inner/01_duo_2007x2853",
@@ -132,6 +133,11 @@ describe("buildJobs", () => {
     );
     expect(jobs).toHaveLength(3); // iPhone 6.9, iPhone 6.3, Play phone
     expect(jobs.every((j) => j.pathStem.includes("_ok_"))).toBe(true);
+  });
+
+  it("Android XR screenshot → one 3840×2400 landscape output, regardless of orientation", () => {
+    const t = targetsFor(asset({ deviceClass: "xr", width: 3840, height: 2400, orientation: "portrait" }), settings());
+    expect(t.map((x) => `${x.preset.folder} ${x.size.w}x${x.size.h}`)).toEqual(["xr 3840x2400"]);
   });
 
   it("uses each store's own locale code in folder names", () => {
@@ -202,9 +208,9 @@ describe("removing individual outputs", () => {
   it("drops only the removed output for that image (keep iPad 13, skip Play 10-inch)", () => {
     const a = ipad();
     a.excluded = excludePreset(a, "gp_tablet_10");
-    expect(targetsFor(a, settings()).map((t) => t.preset.id)).toEqual(["as_ipad_13"]);
+    expect(targetsFor(a, settings()).map((t) => t.preset.id)).toEqual(["as_ipad_13", "gp_tablet_7"]);
     expect(excludedTargetsFor(a, settings()).map((t) => t.preset.id)).toEqual(["gp_tablet_10"]);
-    expect(buildJobs([a], settings()).map((j) => j.preset.id)).toEqual(["as_ipad_13"]);
+    expect(buildJobs([a], settings()).map((j) => j.preset.id)).toEqual(["as_ipad_13", "gp_tablet_7"]);
   });
 
   it("does not affect other images", () => {
@@ -212,7 +218,7 @@ describe("removing individual outputs", () => {
     const b = ipad();
     a.excluded = ["gp_tablet_10"];
     const jobs = buildJobs([a, b], settings());
-    expect(jobs.filter((j) => j.assetId === b.id).map((j) => j.preset.id)).toEqual(["as_ipad_13", "gp_tablet_10"]);
+    expect(jobs.filter((j) => j.assetId === b.id).map((j) => j.preset.id)).toEqual(["as_ipad_13", "gp_tablet_10", "gp_tablet_7"]);
   });
 
   it("numbers the remaining files without gaps", () => {
@@ -228,7 +234,7 @@ describe("removing individual outputs", () => {
     a.excluded = excludePreset({ excluded: excludePreset(a, "gp_tablet_10") }, "gp_tablet_10");
     expect(a.excluded).toEqual(["gp_tablet_10"]);
     a.excluded = restorePreset(a, "gp_tablet_10");
-    expect(targetsFor(a, settings()).map((t) => t.preset.id)).toEqual(["as_ipad_13", "gp_tablet_10"]);
+    expect(targetsFor(a, settings()).map((t) => t.preset.id)).toEqual(["as_ipad_13", "gp_tablet_10", "gp_tablet_7"]);
   });
 
   it("a removed preset that is also disabled globally isn't offered for restore", () => {
@@ -240,7 +246,7 @@ describe("removing individual outputs", () => {
 
   it("removing every output leaves the image with no jobs", () => {
     const a = ipad();
-    a.excluded = ["as_ipad_13", "gp_tablet_10"];
+    a.excluded = ["as_ipad_13", "gp_tablet_10", "gp_tablet_7"];
     expect(buildJobs([a], settings())).toEqual([]);
   });
 });

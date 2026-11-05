@@ -19,11 +19,13 @@
  *    • Recommendation eligibility (phone): ≥4 shots at 9:16 ≥1080×1920 or 16:9 ≥1920×1080
  *    • Large screens (7"/10" tablets, Chromebook): each side 1080–7680 px, 9:16 or 16:9
  *    • Feature graphic: exactly 1024×500, JPEG or 24-bit PNG, no alpha
+ *    • Android XR: 8:5 aspect ratio, recommended 3840×2400 (minimum 1920×1200), PNG or JPEG up to
+ *      8 MB each, 4–8 screenshots (re-verified 2026-11-05)
  *    • Google no longer publishes a per-file limit; we keep the historical 8 MB cap as a safety margin.
  */
 
 export type Store = "app_store" | "play_store";
-export type DeviceClass = "phone" | "tablet" | "foldable";
+export type DeviceClass = "phone" | "tablet" | "foldable" | "xr";
 export type Category = "screenshot" | "feature_graphic";
 /** A language id from utils/languages.ts (App Store Connect code, e.g. "en-US", "ja", "zh-Hans"). */
 export type Locale = string;
@@ -37,7 +39,8 @@ export interface Size {
 export type RuleSet =
   | { kind: "exact"; accepted: Size[] }
   | { kind: "play_phone" }
-  | { kind: "play_large_screen" };
+  | { kind: "play_large_screen" }
+  | { kind: "play_xr" };
 
 export interface Preset {
   id: string;
@@ -202,7 +205,7 @@ export const PRESETS: Preset[] = [
     deviceClass: "tablet",
     category: "screenshot",
     portrait: { w: 1080, h: 1920 },
-    defaultEnabled: false,
+    defaultEnabled: true,
     rules: { kind: "play_large_screen" },
     maxBytes: PLAY_MAX_BYTES,
   },
@@ -231,6 +234,20 @@ export const PRESETS: Preset[] = [
     rules: { kind: "play_large_screen" },
     maxBytes: PLAY_MAX_BYTES,
     warning: "16:10 ratio. Current Play guidance asks for 9:16 / 16:9 on large screens.",
+  },
+  {
+    id: "gp_xr",
+    store: "play_store",
+    label: "Android XR",
+    folder: "xr",
+    deviceClass: "xr",
+    category: "screenshot",
+    portrait: { w: 3840, h: 2400 },
+    landscapeOnly: true,
+    defaultEnabled: true,
+    rules: { kind: "play_xr" },
+    maxBytes: PLAY_MAX_BYTES,
+    note: "8:5 landscape, 4–8 per language. Use real captures from an XR headset or the Android XR emulator.",
   },
   {
     id: "gp_feature",
@@ -327,6 +344,11 @@ export function checkDimensions(preset: Preset, size: Size): ComplianceCheck[] {
       return [
         { label: "Each side 1080–7680 px", ok: short >= 1080 && long <= 7680 },
         { label: "9:16 / 16:9 aspect ratio", ok: Math.abs(short / long - 9 / 16) < 0.005 },
+      ];
+    case "play_xr":
+      return [
+        { label: "8:5 aspect ratio", ok: Math.abs(long / short - 8 / 5) < 0.005 },
+        { label: "≥1920×1200 (recommended 3840×2400)", ok: long >= 1920 && short >= 1200, level: "warn" },
       ];
   }
 }

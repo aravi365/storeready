@@ -48,6 +48,8 @@ const KNOWN: KnownSize[] = [
   { w: 828, h: 1792, label: 'iPhone 6.1" (XR / 11)', deviceClass: "phone" },
   { w: 1242, h: 2208, label: 'iPhone 5.5" (Plus)', deviceClass: "phone" },
   { w: 750, h: 1334, label: 'iPhone 4.7" (SE / 8)', deviceClass: "phone" },
+  // Android XR (8:5 landscape)
+  { w: 2400, h: 3840, label: "Android XR (3840×2400)", deviceClass: "xr" },
   // iPhone Duo (foldable)
   { w: 1398, h: 2034, label: "iPhone Duo outer display", deviceClass: "foldable" },
   { w: 2007, h: 2853, label: "iPhone Duo inner display", deviceClass: "foldable" },
@@ -138,6 +140,7 @@ export function detectAsset(name: string, w: number, h: number, bytes: number): 
 
   // 2. File-name hints
   const nameFeature = /feature|banner|graphic|promo_?header/.test(lower);
+  const nameXr = /(^|[^a-z])(?:android[ _-]?)?(xr|headset|immersive)([^a-z]|$)/.test(lower);
   const nameFoldable = /(^|[^a-z])(iphone[ _-]?)?(duo|fold|foldable)([^a-z]|$)/.test(lower);
   const nameTablet = /ipad|tablet|(^|[^a-z])tab([^a-z]|$)/.test(lower);
   const namePhone = /iphone|phone|mobile|android/.test(lower);
@@ -174,6 +177,9 @@ export function detectAsset(name: string, w: number, h: number, bytes: number): 
     if (nameFeature && category !== "feature_graphic") {
       category = "feature_graphic";
       label = "Feature graphic (from file name)";
+    } else if (nameXr && category === "screenshot") {
+      deviceClass = "xr";
+      label = "Android XR (from file name)";
     } else if (nameFoldable && category === "screenshot") {
       deviceClass = "foldable";
       label = "iPhone Duo (from file name)";
@@ -190,7 +196,7 @@ export function detectAsset(name: string, w: number, h: number, bytes: number): 
 
   // Resolution findings
   if (result.category === "screenshot") {
-    const minLong = { phone: 2868, tablet: 2752, foldable: 2853 }[result.deviceClass]; // largest Apple target
+    const minLong = { phone: 2868, tablet: 2752, foldable: 2853, xr: 2560 }[result.deviceClass]; // largest Apple target
     if (exact?.deviceClass === "foldable" && long < minLong) {
       // A real outer-display capture: expected to be smaller than the inner display, not "low resolution".
       notes.push({

@@ -23,6 +23,10 @@ export const FAQ: { q: string; a: string }[] = [
     a: "JPEG or 24-bit PNG with no alpha, 2 to 8 screenshots per device type, each side between 320 and 3840 px, and the long side no more than twice the short side. For promotion eligibility use 9:16 at 1080×1920 or larger. Tablet and Chromebook screenshots should be 9:16 or 16:9 with sides between 1080 and 7680 px.",
   },
   {
+    q: "What size are Android XR screenshots on Google Play?",
+    a: "Android XR screenshots use an 8:5 aspect ratio. Google recommends 3840×2400 px (minimum 1920×1200), PNG or JPEG up to 8 MB each, and you must upload between 4 and 8 if your app targets Android XR. Use real captures from a headset or the Android XR emulator; StoreReady\u2019s Android XR set resizes them to 3840×2400.",
+  },
+  {
     q: "What size is the Google Play feature graphic?",
     a: "Exactly 1024×500 px, JPEG or 24-bit PNG without alpha. It is required to publish a store listing.",
   },

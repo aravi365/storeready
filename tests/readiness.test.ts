@@ -133,6 +133,25 @@ describe("Google Play rules", () => {
   });
 });
 
+describe("Android XR", () => {
+  const xr = (p: Partial<Asset> = {}) => asset({ deviceClass: "xr", width: 3840, height: 2400, ...p });
+  const playOnly = settings({ stores: new Set(["play_store"]) });
+
+  it("1–3 XR screenshots is an error; 4–8 is fine; none means XR isn't targeted", () => {
+    expect(report([phone(), phone(), feature(), xr()], playOnly).items.find((i) => i.id === "play-en-xr-few")?.level).toBe("error");
+    expect(ids(report([phone(), phone(), feature(), ...times(4, () => xr())], playOnly))).not.toContain("play-en-xr-few");
+    expect(ids(report([phone(), phone(), feature()], playOnly)).some((i) => i.includes("xr"))).toBe(false);
+  });
+
+  it("more than 8 XR screenshots is an error", () => {
+    expect(ids(report([phone(), phone(), feature(), ...times(9, () => xr())], playOnly))).toContain("play-en-xr-max");
+  });
+
+  it("XR images produce no App Store outputs", () => {
+    expect(report([...times(4, () => xr())]).checked).toEqual(["play_store/en"]);
+  });
+});
+
 describe("per-language checks", () => {
   it("checks each language separately", () => {
     const r = report([...times(2, () => phone()), feature(), phone({ locale: "th" })]);
@@ -168,7 +187,7 @@ describe("file checks", () => {
 
 describe("limits match the published rules", () => {
   it("uses Apple 10 / Play 2–8, 4 for large screens and promo", () => {
-    expect(LIMITS).toEqual({ appleMaxPerSize: 10, playMinTotal: 2, playMaxPerType: 8, playLargeScreenMin: 4, playPromoMin: 4 });
+    expect(LIMITS).toEqual({ appleMaxPerSize: 10, playMinTotal: 2, playMaxPerType: 8, playLargeScreenMin: 4, playPromoMin: 4, playXrMin: 4 });
   });
 });
 

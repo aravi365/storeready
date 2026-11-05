@@ -15,6 +15,7 @@ import {
   Loader2,
   Smartphone,
   BookOpen,
+  Glasses,
   Maximize2,
   RotateCcw,
   X,
@@ -60,7 +61,7 @@ const fmtBytes = (n: number) =>
 
 const STORE_SHORT = { app_store: "iOS", play_store: "Play" } as const;
 
-const SET_NAME: Record<DeviceClass, string> = { phone: "Mobile", tablet: "iPad / Tablet", foldable: "iPhone Duo" };
+const SET_NAME: Record<DeviceClass, string> = { phone: "Mobile", tablet: "iPad / Tablet", foldable: "iPhone Duo", xr: "Android XR" };
 
 let idSeq = 0;
 const newId = () => `a${Date.now().toString(36)}${(idSeq++).toString(36)}`;
@@ -156,12 +157,13 @@ export function ImageUploader({
     phone: assets.filter((a) => a.deviceClass === "phone" && a.category === "screenshot").length,
     tablet: assets.filter((a) => a.deviceClass === "tablet" && a.category === "screenshot").length,
     foldable: assets.filter((a) => a.deviceClass === "foldable" && a.category === "screenshot").length,
+    xr: assets.filter((a) => a.deviceClass === "xr" && a.category === "screenshot").length,
     feature: assets.filter((a) => a.category === "feature_graphic").length,
   };
 
   return (
     <div className="space-y-5">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2">
         <SetDropzone
           device="phone"
           title="Mobile set"
@@ -186,6 +188,14 @@ export function ImageUploader({
           busy={busy}
           onFiles={(f) => ingest(f, "foldable")}
         />
+        <SetDropzone
+          device="xr"
+          title="Android XR set"
+          subtitle="Play XR · 3840×2400 (8:5)"
+          count={counts.xr}
+          busy={busy}
+          onFiles={(f) => ingest(f, "xr")}
+        />
       </div>
       <FolderImportZone busy={busy} onFiles={(f) => ingest(f)} />
       <p className="-mt-2 text-center text-xs text-muted-foreground">
@@ -202,6 +212,7 @@ export function ImageUploader({
             <Chip>{counts.phone} mobile</Chip>
             <Chip>{counts.tablet} tablet</Chip>
             {counts.foldable > 0 && <Chip>{counts.foldable} Duo</Chip>}
+            {counts.xr > 0 && <Chip>{counts.xr} XR</Chip>}
             {counts.feature > 0 && <Chip>{counts.feature} feature</Chip>}
             {languageCounts(assets).map(([id, n]) => (
               <Chip key={id}>
@@ -342,13 +353,14 @@ function AssetCard({
               { value: "phone", label: <><Smartphone className="size-3" /> iPhone / Mobile</> },
               { value: "tablet", label: <><Tablet className="size-3" /> iPad / Tablet</> },
               { value: "foldable", label: <><BookOpen className="size-3" /> iPhone Duo</> },
+              { value: "xr", label: <><Glasses className="size-3" /> Android XR</> },
             ]}
           />
           <LanguageSelect size="sm" aria-label="Language" value={a.locale} onChange={(locale) => onUpdate({ locale })} className="w-44" />
           <Segmented
             size="sm"
             aria-label="Orientation"
-            className={cn(isFeature && "pointer-events-none opacity-40")}
+            className={cn((isFeature || a.deviceClass === "xr") && "pointer-events-none opacity-40")}
             value={a.orientation}
             onChange={(orientation) => onUpdate({ orientation })}
             options={[
@@ -809,7 +821,7 @@ function SetDropzone({
     multiple: true,
     disabled: busy,
   });
-  const Icon = { phone: Smartphone, tablet: Tablet, foldable: BookOpen }[device];
+  const Icon = { phone: Smartphone, tablet: Tablet, foldable: BookOpen, xr: Glasses }[device];
   return (
     <div
       {...getRootProps()}
@@ -829,6 +841,7 @@ function SetDropzone({
             phone: "bg-gradient-to-br from-violet-500 to-indigo-600",
             tablet: "bg-gradient-to-br from-sky-500 to-cyan-600",
             foldable: "bg-gradient-to-br from-emerald-500 to-teal-600",
+            xr: "bg-gradient-to-br from-rose-500 to-orange-500",
           }[device],
         )}
       >
@@ -940,6 +953,8 @@ function EmptyState({ settings }: { settings: GlobalSettings }) {
                             <Tablet className="size-3.5 text-muted-foreground" />
                           ) : p.deviceClass === "foldable" ? (
                             <BookOpen className="size-3.5 text-muted-foreground" />
+                          ) : p.deviceClass === "xr" ? (
+                            <Glasses className="size-3.5 text-muted-foreground" />
                           ) : (
                             <Smartphone className="size-3.5 text-muted-foreground" />
                           )}

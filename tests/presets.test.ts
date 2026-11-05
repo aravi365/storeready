@@ -38,6 +38,8 @@ describe("preset table", () => {
         "play_store/feature_graphic",
         "play_store/phone",
         "play_store/tablet_10in",
+        "play_store/tablet_7in",
+        "play_store/xr",
       ].sort(),
     );
   });
@@ -109,6 +111,16 @@ describe("checkDimensions rules", () => {
     expect(passes("as_duo_inner", 2853, 2007)).toBe(true);
     expect(passes("as_duo_outer", 2007, 2853)).toBe(false); // inner size in the outer slot
     expect(passes("as_duo_inner", 1320, 2868)).toBe(false);
+  });
+
+  it("Android XR: 8:5 required, 1920×1200+ recommended", () => {
+    expect(passes("gp_xr", 3840, 2400)).toBe(true);
+    expect(passes("gp_xr", 1920, 1200)).toBe(true);
+    expect(passes("gp_xr", 2400, 3840)).toBe(true); // same ratio either way
+    expect(passes("gp_xr", 3840, 2160)).toBe(false); // 16:9 is not 8:5
+    expect(passes("gp_xr", 1600, 1000)).toBe(true); // 8:5 but below the recommendation: warning only
+    expect(checkDimensions(PRESET_BY_ID.gp_xr, { w: 1600, h: 1000 }).find((c) => c.level === "warn")?.ok).toBe(false);
+    expect(sizeFor(PRESET_BY_ID.gp_xr, "portrait")).toEqual({ w: 3840, h: 2400 });
   });
 
   it("feature graphic must be exactly 1024×500", () => {
