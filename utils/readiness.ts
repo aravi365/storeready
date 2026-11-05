@@ -78,7 +78,7 @@ const PLAY_TYPE_NAME: Record<string, string> = { phone: "phone", tablet_7: "7″
 
 export function checkReadiness(
   jobs: Job[],
-  outputOf: (job: Job) => Pick<OutputState, "status" | "compliance"> | undefined,
+  outputOf: (job: Job) => Pick<OutputState, "status" | "compliance" | "checks"> | undefined,
   opts: { hasTabletSources?: Record<Locale, boolean> } = {},
 ): ReadinessReport {
   const items: ReadinessItem[] = [];
@@ -264,6 +264,20 @@ export function checkReadiness(
       store: "files",
       title: `${nonCompliant.length} file${nonCompliant.length === 1 ? " fails" : "s fail"} the store checks`,
       detail: nonCompliant.map((j) => j.pathStem.split("/").pop()).slice(0, 3).join(", ") + (nonCompliant.length > 3 ? "…" : ""),
+    });
+  }
+
+  const seams = jobs.filter((j) => {
+    const o = outputOf(j);
+    return o?.status === "done" && o.checks?.some((c) => !c.ok);
+  });
+  if (seams.length) {
+    add({
+      id: "files-seam",
+      level: "warning",
+      store: "files",
+      title: `${seams.length} file${seams.length === 1 ? "" : "s"} may show a visible seam`,
+      detail: "Open them with Preview and check the join. Try another Extend side on that image if it shows.",
     });
   }
 

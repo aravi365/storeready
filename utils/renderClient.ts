@@ -75,8 +75,8 @@ function runInWorker(worker: Worker, asset: Asset, list: Job[], cb: RunCallbacks
     const onMessage = (e: MessageEvent<WorkerResponse>) => {
       const m = e.data;
       if (m.type === "result") {
-        const { jobId, blob, format, width, height, note } = m;
-        const result = { blob, format, width, height, note };
+        const { jobId, blob, format, width, height, note, checks, joins } = m;
+        const result = { blob, format, width, height, note, checks, joins };
         pending.push(Promise.resolve(cb.onJob(jobMap.get(jobId)!, { ok: true, result })));
       } else if (m.type === "job-error") {
         pending.push(Promise.resolve(cb.onJob(jobMap.get(m.jobId)!, { ok: false, error: m.message })));

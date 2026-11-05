@@ -1,6 +1,8 @@
 "use client";
 
-import { AlertTriangle, Apple, Crop, Languages, Palette, Play, Settings2, Sparkles } from "lucide-react";
+import { useState } from "react";
+
+import { AlertTriangle, Apple, Plus, Ruler, X, Crop, Languages, Palette, Play, Settings2, Sparkles } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -16,6 +18,7 @@ import { languageName, storeLocale } from "@/utils/languages";
 import type { ScaleMode } from "@/utils/canvasResizer";
 
 const STORE_ICON: Record<Store, React.ReactNode> = {
+  custom: <Ruler className="size-4" />,
   app_store: <Apple className="size-4" />,
   play_store: <Play className="size-4" />,
 };
@@ -153,6 +156,13 @@ export function PresetSelector({
           );
         })}
 
+        {/* Custom sizes */}
+        <section className="space-y-2">
+          <h3 className="flex items-center gap-2 text-sm font-semibold">
+            <Ruler className="size-4" /> Custom sizes
+          </h3>
+          <CustomSizes sizes={settings.customSizes} onChange={(v) => set("customSizes", v)} />
+        </section>
         <Separator />
 
         {/* Locales */}
@@ -211,17 +221,24 @@ export function PresetSelector({
               Stretch distorts UI and text. Apple and Google may reject screenshots that misrepresent the app.
             </p>
           )}
-          <Row label="Letterbox fill">
+          <Row label="Fit fills space with">
             <Segmented
               size="sm"
               value={settings.backdrop}
               options={[
-                { value: "blur", label: "Blurred" },
-                { value: "solid", label: "Solid" },
+                { value: "edge", label: "Edge", title: "Continue the screenshot's own background from its plainest edge" },
+                { value: "blur", label: "Blur", title: "Blurred copy of the image behind it" },
+                { value: "solid", label: "Solid", title: "The background colour below" },
               ]}
               onChange={(v) => set("backdrop", v)}
             />
           </Row>
+          {settings.backdrop === "edge" && (
+            <p className="text-xs text-muted-foreground">
+              Nothing is cropped and no bars are added: the canvas grows by continuing the background from the plainest edge,
+              with a soft blend. Each output gets an automatic seam check.
+            </p>
+          )}
           <Row label={`Fit padding · ${Math.round(settings.padding * 100)}%`}>
             <Slider
               className="w-32"
@@ -244,6 +261,18 @@ export function PresetSelector({
           <h3 className="flex items-center gap-2 text-sm font-semibold">
             <Palette className="size-4" /> Output
           </h3>
+          <Row label="File names">
+            <Segmented
+              size="sm"
+              value={settings.fileNames}
+              options={[
+                { value: "original-size", label: "name_WxH", title: "Original file name plus the output size, e.g. home_2160x3840.png" },
+                { value: "original", label: "name", title: "Original file name, e.g. home.png" },
+                { value: "numbered", label: "01_name", title: "Numbered in upload order, e.g. 01_home_2160x3840.png" },
+              ]}
+              onChange={(v) => set("fileNames", v)}
+            />
+          </Row>
           <Row label="Format">
             <Segmented
               size="sm"
@@ -318,6 +347,57 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
     <div className="flex items-center justify-between gap-3">
       <span className="text-xs text-muted-foreground">{label}</span>
       {children}
+    </div>
+  );
+}
+
+function CustomSizes({ sizes, onChange }: { sizes: { w: number; h: number }[]; onChange: (v: { w: number; h: number }[]) => void }) {
+  const [w, setW] = useState("");
+  const [h, setH] = useState("");
+  const W = Number(w);
+  const H = Number(h);
+  const valid = Number.isInteger(W) && Number.isInteger(H) && W >= 64 && H >= 64 && W <= 12000 && H <= 12000;
+  const key = (s: { w: number; h: number }) => `${Math.min(s.w, s.h)}x${Math.max(s.w, s.h)}`;
+  const add = () => {
+    if (!valid) return;
+    if (!sizes.some((s) => key(s) === key({ w: W, h: H }))) onChange([...sizes, { w: W, h: H }]);
+    setW("");
+    setH("");
+  };
+  return (
+    <div className="space-y-2">
+      <form
+        className="flex items-center gap-1.5"
+        onSubmit={(e) => {
+          e.preventDefault();
+          add();
+        }}
+      >
+        <Input aria-label="Custom width" inputMode="numeric" placeholder="Width" value={w} onChange={(e) => setW(e.target.value.replace(/\D/g, ""))} className="h-8 w-20 font-mono text-xs" />
+        <span className="text-muted-foreground">×</span>
+        <Input aria-label="Custom height" inputMode="numeric" placeholder="Height" value={h} onChange={(e) => setH(e.target.value.replace(/\D/g, ""))} className="h-8 w-20 font-mono text-xs" />
+        <button
+          type="submit"
+          disabled={!valid}
+          className="inline-flex h-8 items-center gap-1 rounded-lg border bg-background px-2.5 text-xs font-medium hover:bg-muted disabled:opacity-50"
+        >
+          <Plus className="size-3.5" /> Add
+        </button>
+      </form>
+      {sizes.length > 0 ? (
+        <ul className="flex flex-wrap gap-1.5">
+          {sizes.map((s) => (
+            <li key={key(s)} className="inline-flex items-center gap-1 rounded-full border bg-muted/50 py-0.5 pr-1 pl-2.5 font-mono text-xs">
+              {key(s).replace("x", "×")}
+              <button type="button" aria-label={`Remove ${key(s)}`} onClick={() => onChange(sizes.filter((x) => key(x) !== key(s)))} className="rounded-full p-0.5 hover:text-destructive">
+                <X className="size-3" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-xs text-muted-foreground">Any W×H (64–12000 px). Applied to every screenshot, keeping its orientation, in a custom/ folder.</p>
+      )}
     </div>
   );
 }

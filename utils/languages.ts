@@ -99,7 +99,7 @@ export function languageById(id: string): Language {
 }
 
 export const languageName = (id: string) => languageById(id).name;
-export const storeLocale = (store: "app_store" | "play_store", id: string) => (store === "app_store" ? languageById(id).apple : languageById(id).play);
+export const storeLocale = (store: "app_store" | "play_store" | "custom", id: string) => (store !== "play_store" ? languageById(id).apple : languageById(id).play);
 
 // ───────────────────────── Detection from text ─────────────────────────
 

@@ -54,7 +54,9 @@ describe("preset table", () => {
     expect(PRESET_BY_ID.as_iphone_67.portrait).toEqual({ w: 1290, h: 2796 });
     expect(PRESET_BY_ID.as_ipad_13.portrait).toEqual({ w: 2064, h: 2752 });
     expect(PRESET_BY_ID.as_ipad_129.portrait).toEqual({ w: 2048, h: 2732 });
-    expect(PRESET_BY_ID.gp_phone.portrait).toEqual({ w: 1080, h: 1920 });
+    expect(PRESET_BY_ID.gp_phone.portrait).toEqual({ w: 2160, h: 3840 });
+    expect(PRESET_BY_ID.gp_tablet_10.portrait).toEqual({ w: 2160, h: 3840 });
+    expect(PRESET_BY_ID.gp_tablet_7.portrait).toEqual({ w: 2160, h: 3840 });
     expect(PRESET_BY_ID.gp_feature.portrait).toEqual({ w: 1024, h: 500 });
     expect(PRESET_BY_ID.as_duo_outer.portrait).toEqual({ w: 1398, h: 2034 });
     expect(PRESET_BY_ID.as_duo_inner.portrait).toEqual({ w: 2007, h: 2853 });

@@ -33,7 +33,8 @@ function asset(p: Partial<Asset> = {}): Asset {
     ...p,
   };
 }
-const settings = (p: Partial<GlobalSettings> = {}): GlobalSettings => ({ ...DEFAULT_SETTINGS, ...p });
+// Most layout tests use numbered names (01_…), which make ordering explicit.
+const settings = (p: Partial<GlobalSettings> = {}): GlobalSettings => ({ ...DEFAULT_SETTINGS, fileNames: "numbered", ...p });
 
 describe("resolveOrientation", () => {
   it("auto follows the source shape", () => {
@@ -51,7 +52,7 @@ describe("targetsFor", () => {
     expect(targetsFor(asset(), settings()).map((t) => `${t.preset.id} ${t.size.w}x${t.size.h}`)).toEqual([
       "as_iphone_69 1320x2868",
       "as_iphone_63 1206x2622",
-      "gp_phone 1080x1920",
+      "gp_phone 2160x3840",
     ]);
   });
   it("tablet screenshot → iPad 13 + Play 10-inch + Play 7-inch", () => {
@@ -67,7 +68,7 @@ describe("targetsFor", () => {
   });
   it("landscape sources get landscape targets", () => {
     const t = targetsFor(asset({ width: 2868, height: 1320 }), settings());
-    expect(t.map((x) => x.size)).toEqual([{ w: 2868, h: 1320 }, { w: 2622, h: 1206 }, { w: 1920, h: 1080 }]);
+    expect(t.map((x) => x.size)).toEqual([{ w: 2868, h: 1320 }, { w: 2622, h: 1206 }, { w: 3840, h: 2160 }]);
   });
   it("feature graphic → only the 1024×500 preset", () => {
     expect(targetsFor(asset({ category: "feature_graphic", width: 1024, height: 500 }), settings()).map((t) => t.preset.id)).toEqual(["gp_feature"]);
@@ -110,16 +111,16 @@ describe("buildJobs", () => {
     expect(jobs.map((j) => j.pathStem)).toEqual([
       "app-store-assets/app_store/en-US/iphone_6.9/01_home_1320x2868",
       "app-store-assets/app_store/en-US/iphone_6.3/01_home_1206x2622",
-      "app-store-assets/play_store/en-US/phone/01_home_1080x1920",
+      "app-store-assets/play_store/en-US/phone/01_home_2160x3840",
       "app-store-assets/app_store/en-US/iphone_6.9/02_settings_1320x2868",
       "app-store-assets/app_store/en-US/iphone_6.3/02_settings_1206x2622",
-      "app-store-assets/play_store/en-US/phone/02_settings_1080x1920",
+      "app-store-assets/play_store/en-US/phone/02_settings_2160x3840",
       "app-store-assets/app_store/th/iphone_6.9/01_home_1320x2868",
       "app-store-assets/app_store/th/iphone_6.3/01_home_1206x2622",
-      "app-store-assets/play_store/th/phone/01_home_1080x1920",
+      "app-store-assets/play_store/th/phone/01_home_2160x3840",
       "app-store-assets/app_store/en-US/ipad_13/01_ipad_2064x2752",
-      "app-store-assets/play_store/en-US/tablet_10in/01_ipad_1440x2560",
-      "app-store-assets/play_store/en-US/tablet_7in/01_ipad_1080x1920",
+      "app-store-assets/play_store/en-US/tablet_10in/01_ipad_2160x3840",
+      "app-store-assets/play_store/en-US/tablet_7in/01_ipad_2160x3840",
       "app-store-assets/play_store/en-US/feature_graphic/01_banner_1024x500",
       "app-store-assets/app_store/th/iphone_duo_outer/01_duo_1398x2034",
       "app-store-assets/app_store/th/iphone_duo_inner/01_duo_2007x2853",
@@ -226,7 +227,7 @@ describe("removing individual outputs", () => {
     const b = ipad();
     a.excluded = ["gp_tablet_10"];
     const play = buildJobs([a, b], settings()).filter((j) => j.preset.id === "gp_tablet_10");
-    expect(play.map((j) => j.pathStem.split("/").pop())).toEqual(["01_dash_1440x2560"]);
+    expect(play.map((j) => j.pathStem.split("/").pop())).toEqual(["01_dash_2160x3840"]);
   });
 
   it("restore brings it back; excluding twice is harmless", () => {
@@ -248,5 +249,55 @@ describe("removing individual outputs", () => {
     const a = ipad();
     a.excluded = ["as_ipad_13", "gp_tablet_10", "gp_tablet_7"];
     expect(buildJobs([a], settings())).toEqual([]);
+  });
+});
+
+describe("file names", () => {
+  const stems = (assets: Asset[], p: Partial<GlobalSettings> = {}) =>
+    buildJobs(assets, settings({ presets: new Set(["gp_phone"]), ...p })).map((j) => j.pathStem.split("/").pop());
+
+  it("default keeps the original name and adds the size", () => {
+    expect(DEFAULT_SETTINGS.fileNames).toBe("original-size");
+    expect(stems([asset({ name: "Home Screen.png" })], { fileNames: "original-size" })).toEqual(["Home Screen_2160x3840"]);
+  });
+  it("'original' keeps the name exactly", () => {
+    expect(stems([asset({ name: "หน้าแรก.PNG" })], { fileNames: "original" })).toEqual(["หน้าแรก"]);
+  });
+  it("makes names safe for every OS", () => {
+    expect(stems([asset({ name: 'a/b:c*?"<>|.png' })], { fileNames: "original" })).toEqual(["a_b_c_"]);
+    expect(stems([asset({ name: "...png" })], { fileNames: "original" })).toEqual(["image"]);
+  });
+  it("duplicate names in one folder get -2, -3 instead of overwriting", () => {
+    expect(stems([asset({ name: "home.png" }), asset({ name: "home.png" }), asset({ name: "HOME.png" })], { fileNames: "original" })).toEqual([
+      "home",
+      "home-2",
+      "HOME-3",
+    ]);
+  });
+  it("same name in different languages doesn't clash", () => {
+    expect(stems([asset({ name: "home.png" }), asset({ name: "home.png", locale: "ja" })], { fileNames: "original" })).toEqual(["home", "home"]);
+  });
+});
+
+describe("custom sizes", () => {
+  it("adds a custom W×H output for every screenshot, keeping orientation, in custom/<locale>/WxH/", () => {
+    const s = settings({ presets: new Set(), customSizes: [{ w: 1242, h: 2208 }] });
+    const portrait = buildJobs([asset()], s);
+    const landscape = buildJobs([asset({ width: 2868, height: 1320 })], s);
+    expect(portrait.map((j) => [j.pathStem.split("/").slice(1, 4).join("/"), j.size])).toEqual([["custom/en-US/1242x2208", { w: 1242, h: 2208 }]]);
+    expect(landscape[0].size).toEqual({ w: 2208, h: 1242 });
+  });
+  it("applies to tablets and Duo too, but not feature graphics", () => {
+    const s = settings({ presets: new Set(), customSizes: [{ w: 2000, h: 1000 }] });
+    expect(buildJobs([asset({ deviceClass: "tablet" }), asset({ deviceClass: "foldable" })], s)).toHaveLength(2);
+    expect(buildJobs([asset({ category: "feature_graphic" })], s)).toHaveLength(0);
+  });
+  it("entering the same size twice (either way round) makes one output", () => {
+    const s = settings({ presets: new Set(), customSizes: [{ w: 1000, h: 2000 }, { w: 2000, h: 1000 }] });
+    expect(buildJobs([asset()], s)).toHaveLength(1);
+  });
+  it("custom outputs pass their own exact-size check", () => {
+    const [j] = buildJobs([asset()], settings({ presets: new Set(), customSizes: [{ w: 1234, h: 2345 }] }));
+    expect(j.preset.rules).toEqual({ kind: "exact", accepted: [{ w: 1234, h: 2345 }, { w: 2345, h: 1234 }] });
   });
 });

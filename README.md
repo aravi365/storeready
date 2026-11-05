@@ -14,7 +14,8 @@ Free, private, in-browser tool that resizes App Store and Google Play screenshot
 - **Upload files or whole folders:** drop into the Mobile, iPad / Tablet, iPhone Duo or Android XR set, or use **Smart folder import** with a tree like `en/iphone`, `th/ipad`. You can drop several folders at once, or pick them one after another. Hidden and non-image files are skipped.
 - **Auto-detection:** device from the exact pixel size (about 30 known iPhone, iPad and Android resolutions), then aspect ratio; language (any of the 50 App Store languages) and type from file and folder names; warnings for oversized or low-resolution sources.
 - **Store-compliant output:** true 24-bit RGB PNG (no alpha) or JPEG, a size cap for Google Play, and a compliance badge on every file.
-- **Fit, Fill or Stretch:** Fit keeps the whole image, adding background only where shapes really differ; under a 1% difference it fills edge to edge with an even hairline trim instead of thin bars. Fill smart-crops; Stretch distorts.
+- **Edge extension (default Fit):** never crops and never adds bars. The canvas grows by continuing the screenshot's own background from its plainest edge (outermost rows averaged, lightly blurred, with a short feathered blend), and every output gets automatic checks: seam brightness, no black lines, nothing cropped, no transparency. Override the side per image (top, bottom, both, left, right). Blurred and solid letterbox, Fill (smart crop) and Stretch are still available.
+- **Custom sizes and file names:** add any W×H; outputs keep the original file name with a size suffix (or plain names, or numbered).
 - **Auto-generated outputs** with a table of every file, and one ZIP sorted by store, language and device.
 - **Full-size preview popup** for any generated file (100% zoom, arrow-key browsing, compliance details, download).
 - **Remove individual outputs:** drop one size for one image (e.g. keep iPad 13″, skip Play 10″ tablet) with Undo and Restore.

@@ -1,8 +1,10 @@
 import type { Backdrop, EncodeOptions, OutputFormat, RenderOptions, ScaleMode, SourceAnalysis } from "./canvasResizer";
 import { detectAsset, type Detection } from "./detect";
+import type { ExtendChoice, QualityCheck } from "./edgeExtend";
 import { storeLocale } from "./languages";
 import {
   PRESETS,
+  customPreset,
   type ComplianceResult,
   presetsFor,
   sizeFor,
@@ -43,6 +45,8 @@ export interface Asset {
   /** Per-asset overrides; undefined = inherit global */
   mode?: ScaleMode;
   backdrop?: Backdrop;
+  /** Which side(s) edge extension grows (default auto) */
+  extend?: ExtendChoice;
 }
 
 export interface GlobalSettings {
@@ -62,7 +66,13 @@ export interface GlobalSettings {
   autoDetect: boolean;
   /** Render outputs automatically after upload and settings changes */
   autoGenerate: boolean;
+  /** Extra W×H outputs for every image */
+  customSizes: Size[];
+  /** "original-size": home_2160x3840.png · "original": home.png · "numbered": 01_home_2160x3840.png */
+  fileNames: FileNaming;
 }
+
+export type FileNaming = "original-size" | "original" | "numbered";
 
 export const DEFAULT_SETTINGS: GlobalSettings = {
   stores: new Set<Store>(["app_store", "play_store"]),
@@ -73,11 +83,13 @@ export const DEFAULT_SETTINGS: GlobalSettings = {
   matte: "#FFFFFF",
   mode: "fit",
   featureMode: "fill",
-  backdrop: "blur",
+  backdrop: "edge",
   padding: 0,
   smartCrop: true,
   autoDetect: true,
   autoGenerate: true,
+  customSizes: [],
+  fileNames: "original-size",
 };
 
 export interface Job {
@@ -105,15 +117,17 @@ export function renderOptionsFor(asset: Asset, s: GlobalSettings): RenderOptions
     matte: s.matte,
     padding: s.padding,
     focus: s.smartCrop ? asset.analysis?.focus : undefined,
+    extend: asset.extend ?? "auto",
   };
 }
 
 function allTargetsFor(asset: Asset, s: GlobalSettings): { preset: Preset; size: Size }[] {
   const o = resolveOrientation(asset);
-  return presetsFor(asset.deviceClass, asset.category, s.presets, s.stores).map((preset) => ({
-    preset,
-    size: sizeFor(preset, o),
-  }));
+  const custom = asset.category === "screenshot" ? (s.customSizes ?? []).map(customPreset) : [];
+  const seen = new Set<string>();
+  return [...presetsFor(asset.deviceClass, asset.category, s.presets, s.stores), ...custom]
+    .filter((p) => (seen.has(p.id) ? false : (seen.add(p.id), true)))
+    .map((preset) => ({ preset, size: sizeFor(preset, o) }));
 }
 
 /** Outputs this image will produce (enabled presets minus the ones removed for this image). */
@@ -143,8 +157,34 @@ const slug = (name: string) =>
     .slice(0, 48)
     .toLowerCase() || "image";
 
+/** Original file name without extension, made safe for every OS (keeps spaces, case and any script). */
+export const safeBaseName = (name: string) =>
+  name
+    .replace(/\.[^.]+$/, "")
+    .normalize("NFC")
+    .replace(/[\\/:*?"<>|\u0000-\u001F]+/g, "_")
+    .replace(/^[\s.]+|[\s.]+$/g, "")
+    .slice(0, 120) || "image";
+
+function stemFor(naming: FileNaming, name: string, n: number, size: Size): string {
+  if (naming === "original") return safeBaseName(name);
+  if (naming === "original-size") return `${safeBaseName(name)}_${size.w}x${size.h}`;
+  return `${String(n).padStart(2, "0")}_${slug(name)}_${size.w}x${size.h}`;
+}
+
+/** Two images with the same name in one folder get "-2", "-3"… instead of overwriting each other. */
+function uniqueStem(used: Map<string, Set<string>>, folder: string, stem: string): string {
+  const set = used.get(folder) ?? new Set<string>();
+  used.set(folder, set);
+  let out = stem;
+  for (let k = 2; set.has(out.toLowerCase()); k++) out = `${stem}-${k}`;
+  set.add(out.toLowerCase());
+  return out;
+}
+
 export function buildJobs(assets: Asset[], s: GlobalSettings): Job[] {
   const counters = new Map<string, number>();
+  const used = new Map<string, Set<string>>();
   const jobs: Job[] = [];
   for (const asset of assets) {
     if (asset.status !== "ready" || s.excludedLocales.has(asset.locale)) continue;
@@ -161,7 +201,7 @@ export function buildJobs(assets: Asset[], s: GlobalSettings): Job[] {
         size,
         opts,
         enc: { format: s.format, quality: s.quality, maxBytes: preset.maxBytes },
-        pathStem: `${folder}/${String(n).padStart(2, "0")}_${slug(asset.name)}_${size.w}x${size.h}`,
+        pathStem: `${folder}/${uniqueStem(used, folder, stemFor(s.fileNames ?? "numbered", asset.name, n, size))}`,
       });
     }
   }
@@ -188,6 +228,9 @@ export interface OutputState {
   width?: number;
   height?: number;
   compliance?: ComplianceResult;
+  /** Edge-extension checks; a failure shows a "Check seam" badge */
+  checks?: QualityCheck[];
+  joins?: { axis: "x" | "y"; pos: number; side: string }[];
 }
 
 /** Stable signature so stale results are ignored after settings change. */

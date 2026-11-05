@@ -1,5 +1,5 @@
 /// <reference lib="webworker" />
-import { decodeImage, renderToBlob, type EncodeOptions, type RenderOptions } from "@/utils/canvasResizer";
+import { decodeImage, renderToBlob, type EncodeOptions, type RenderOptions, type RenderResult } from "@/utils/canvasResizer";
 import type { Size } from "@/utils/presets";
 
 export type WorkerRequest = {
@@ -10,7 +10,7 @@ export type WorkerRequest = {
 };
 
 export type WorkerResponse =
-  | { type: "result"; jobId: string; blob: Blob; format: "png" | "jpeg"; width: number; height: number; note?: string }
+  | ({ type: "result"; jobId: string } & RenderResult)
   | { type: "job-error"; jobId: string; message: string }
   | { type: "asset-error"; assetId: string; message: string }
   | { type: "asset-done"; assetId: string };
@@ -29,7 +29,7 @@ self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
   for (const job of jobs) {
     try {
       const r = await renderToBlob(bmp, job.size, job.opts, job.enc);
-      post({ type: "result", jobId: job.id, blob: r.blob, format: r.format, width: r.width, height: r.height, note: r.note });
+      post({ type: "result", jobId: job.id, ...r });
     } catch (err) {
       post({ type: "job-error", jobId: job.id, message: (err as Error).message || "Render failed" });
     }

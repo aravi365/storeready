@@ -116,7 +116,7 @@ export function ScreenshotStudio() {
             failed++;
             patchOutputs({ [job.id]: { sig, status: "error", error: outcome.error } });
           } else {
-            const { blob, format, width, height, note } = outcome.result;
+            const { blob, format, width, height, note, checks, joins } = outcome.result;
             const path = `${job.pathStem}.${format === "png" ? "png" : "jpg"}`;
             // Self-verify what was actually encoded, not what was intended.
             const hasAlpha = format === "png" ? await pngHasAlpha(blob) : false;
@@ -132,6 +132,8 @@ export function ScreenshotStudio() {
                 height,
                 note,
                 compliance,
+                checks,
+                joins,
                 path,
                 fileName: path.split("/").pop(),
                 url: URL.createObjectURL(blob),
@@ -318,7 +320,7 @@ export function ScreenshotStudio() {
         const ext = (o?.format ?? j.enc.format) === "png" ? "png" : "jpg";
         return {
           id: j.id,
-          title: `${j.preset.store === "app_store" ? "App Store" : "Google Play"} · ${j.preset.label} · ${languageName(j.locale)}`,
+          title: `${j.preset.store === "app_store" ? "App Store" : j.preset.store === "play_store" ? "Google Play" : "Custom size"} · ${j.preset.label} · ${languageName(j.locale)}`,
           path: o?.path ?? `${j.pathStem}.${ext}`,
           source: assets.find((a) => a.id === j.assetId)?.name ?? "",
           width: j.size.w,
@@ -329,6 +331,7 @@ export function ScreenshotStudio() {
           bytes: o?.bytes,
           format: o?.format,
           compliance: o?.compliance,
+          checks: o?.checks,
           note: o?.note,
           error: o?.error,
         };
@@ -345,7 +348,7 @@ export function ScreenshotStudio() {
       if (!asset) return;
       const before = asset.excluded;
       onUpdate(asset.id, { excluded: excludePreset(asset, job.preset.id) });
-      toast(`Removed ${job.preset.store === "app_store" ? "iOS" : "Play"} ${job.preset.label} for ${asset.name}`, {
+      toast(`Removed ${job.preset.store === "app_store" ? "iOS " : job.preset.store === "play_store" ? "Play " : ""}${job.preset.label} for ${asset.name}`, {
         description: "It won't be in the ZIP. To skip this size for every image, untick it in Export presets.",
         action: { label: "Undo", onClick: () => onUpdate(asset.id, { excluded: before }) },
       });

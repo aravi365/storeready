@@ -2,9 +2,10 @@
  * Canvas resizing engine — runs on the main thread or inside a Web Worker
  * (uses OffscreenCanvas when available, falls back to <canvas>).
  *
- *  • fit     — contain + letterbox over a solid colour or blurred backdrop. When the source shape is
- *              within FIT_SNAP_TOLERANCE of the target (e.g. 6.7" → 6.9"), it fills edge to edge
- *              instead, trimming at most that much, rather than adding hairline bars.
+ *  • fit     — contain, never cropped. Default backdrop "edge" grows the canvas by continuing the
+ *              screenshot's own background from its plainest edge (see edgeExtend.ts). The older
+ *              "blur" / "solid" backdrops letterbox instead; with those, a shape within
+ *              FIT_SNAP_TOLERANCE of the target (e.g. 6.7" → 6.9") fills with a ≤1% trim.
  *  • fill    — cover + smart crop (edge-energy focal point, or manual focus)
  *  • stretch — distort to exact size
  *
@@ -13,9 +14,22 @@
  */
 import { encodeRgbPng } from "./pngEncoder";
 import type { Size } from "./presets";
+import {
+  chooseSides,
+  checkExtension,
+  edgeLine,
+  edgeParams,
+  fitSize,
+  layoutFor,
+  lineToRgba,
+  type ExtendChoice,
+  type ExtendLayout,
+  type QualityCheck,
+  type Side,
+} from "./edgeExtend";
 
 export type ScaleMode = "fit" | "fill" | "stretch";
-export type Backdrop = "solid" | "blur";
+export type Backdrop = "edge" | "solid" | "blur";
 export type OutputFormat = "png" | "jpeg";
 
 export interface RenderOptions {
@@ -27,6 +41,8 @@ export interface RenderOptions {
   padding: number;
   /** Normalised focal point for fill mode (0–1). Defaults to centre. */
   focus?: { x: number; y: number };
+  /** Edge extension side override (default auto) */
+  extend?: ExtendChoice;
 }
 
 export interface EncodeOptions {
@@ -44,6 +60,17 @@ export interface RenderResult {
   height: number;
   /** Set when the encoder had to change format/quality to meet maxBytes */
   note?: string;
+  /** Edge-extension quality checks (seam, black lines, content kept, no transparency) */
+  checks?: QualityCheck[];
+  /** Where the screenshot meets the extended band, in output pixels */
+  joins?: ExtendLayout["joins"];
+}
+
+export interface CompositionInfo {
+  /** Set when edge extension ran */
+  layout?: ExtendLayout;
+  /** Mean luminance of the source edge used for each extended side */
+  edgeMeans?: Partial<Record<Side, number>>;
 }
 
 type AnyCanvas = OffscreenCanvas | HTMLCanvasElement;
@@ -198,12 +225,12 @@ export function analyzeSource(src: Source): SourceAnalysis {
 
 // ───────── Composition ─────────
 
-/** Largest share of one dimension Fit may trim instead of adding bars (1%). */
+/** Largest share of one dimension Fit may trim instead of adding bars (1%; blur/solid only). */
 export const FIT_SNAP_TOLERANCE = 0.01;
 
 export interface FitPlan {
-  /** exact: same shape · snap: fills, trims ≤ tolerance · letterbox: whole image + bars */
-  strategy: "exact" | "snap" | "letterbox";
+  /** exact: same shape · extend: edge extension (no crop) · snap: fills, trims ≤ tolerance · letterbox: whole image + bars */
+  strategy: "exact" | "extend" | "snap" | "letterbox";
   /** Share of the source cut off along one axis (snap only) */
   trim: number;
   /** Total bar size in target pixels along one axis (letterbox only) */
@@ -216,9 +243,15 @@ export interface FitPlan {
  * Decides how Fit handles a shape mismatch. Pure, so previews, the renderer and tests agree.
  * Padding means the user asked for space, so we never trim then.
  */
-export function planFit(sw: number, sh: number, tw: number, th: number, padding = 0): FitPlan {
+export function planFit(sw: number, sh: number, tw: number, th: number, padding = 0, backdrop: Backdrop = "blur"): FitPlan {
   const sx = tw / sw;
   const sy = th / sh;
+  if (backdrop === "edge" && padding <= 0) {
+    // Edge extension never crops: any gap, however small, is filled from the image's own edge.
+    const f = fitSize(sw, sh, tw, th);
+    if (!f.axis) return { strategy: "exact", trim: 0, bars: 0, axis: null };
+    return { strategy: "extend", trim: 0, bars: f.axis === "y" ? th - f.dh : tw - f.dw, axis: f.axis };
+  }
   const mismatch = 1 - Math.min(sx, sy) / Math.max(sx, sy);
   // Cover scales by the larger factor, so the other axis overflows and is trimmed.
   const trimAxis: FitPlan["axis"] = sx < sy ? "x" : "y";
@@ -242,7 +275,7 @@ export function planFit(sw: number, sh: number, tw: number, th: number, padding 
  * Draws `src` into a tw×th context according to `opts`. Pure geometry, so it works
  * identically for small live previews and full-resolution exports.
  */
-export function drawComposition(ctx: Ctx2D, src: Source, tw: number, th: number, opts: RenderOptions) {
+export function drawComposition(ctx: Ctx2D, src: Source, tw: number, th: number, opts: RenderOptions): CompositionInfo {
   const sw = src.width;
   const sh = src.height;
 
@@ -254,7 +287,7 @@ export function drawComposition(ctx: Ctx2D, src: Source, tw: number, th: number,
 
   if (opts.mode === "stretch") {
     drawHQ(ctx, src, 0, 0, sw, sh, 0, 0, tw, th);
-    return;
+    return {};
   }
 
   if (opts.mode === "fill") {
@@ -265,18 +298,21 @@ export function drawComposition(ctx: Ctx2D, src: Source, tw: number, th: number,
     const cx = clamp(f.x * sw - cw / 2, 0, sw - cw);
     const cy = clamp(f.y * sh - ch / 2, 0, sh - ch);
     drawHQ(ctx, src, cx, cy, cw, ch, 0, 0, tw, th);
-    return;
+    return {};
   }
 
-  // fit
-  const plan = planFit(sw, sh, tw, th, opts.padding);
+  // fit: edge extension (default)
+  if (opts.backdrop === "edge" && opts.padding <= 0) return drawEdgeExtended(ctx, src, tw, th, opts);
+
+  // fit: blur / solid letterbox
+  const plan = planFit(sw, sh, tw, th, opts.padding, opts.backdrop);
   if (plan.strategy !== "letterbox") {
     // Same shape, or within 1%: fill edge to edge with an even, centred trim (no hairline bars).
     const scale = Math.max(tw / sw, th / sh);
     const cw = Math.min(sw, tw / scale);
     const ch = Math.min(sh, th / scale);
     drawHQ(ctx, src, (sw - cw) / 2, (sh - ch) / 2, cw, ch, 0, 0, tw, th);
-    return;
+    return {};
   }
 
   // letterbox: whole image, bars filled with the blurred backdrop or the solid matte
@@ -297,6 +333,86 @@ export function drawComposition(ctx: Ctx2D, src: Source, tw: number, th: number,
     ctx.fillRect(dx, dy, dw, dh);
   }
   drawHQ(ctx, src, 0, 0, sw, sh, dx, dy, dw, dh);
+  return {};
+}
+
+/**
+ * Edge extension (see edgeExtend.ts): fit on one axis, fill the whole canvas from the plainest
+ * edge's outermost rows, then draw the screenshot on top with a short feather at the join.
+ */
+function drawEdgeExtended(ctx: Ctx2D, src: Source, tw: number, th: number, opts: RenderOptions): CompositionInfo {
+  const sw = src.width;
+  const sh = src.height;
+  const { dw, dh, axis } = fitSize(sw, sh, tw, th);
+
+  // The scaled screenshot, composited over the matte so transparency can't leak through.
+  const shot = createCanvas(dw, dh);
+  const sctx = ctx2d(shot, { willReadFrequently: true });
+  sctx.fillStyle = opts.matte;
+  sctx.fillRect(0, 0, dw, dh);
+  drawHQ(sctx, src, 0, 0, sw, sh, 0, 0, dw, dh);
+  if (!axis) {
+    ctx.drawImage(shot, 0, 0);
+    return {};
+  }
+
+  const px = { data: sctx.getImageData(0, 0, dw, dh).data, width: dw, height: dh };
+  const prm = edgeParams(Math.max(tw, th));
+  const { sides } = chooseSides(px, axis, opts.extend, prm.depth);
+  const layout = layoutFor(sw, sh, tw, th, sides);
+
+  // 1. Fill: each extended side's averaged edge line, stretched (nearest-neighbour) over its half
+  //    of the WHOLE canvas, so the feather below blends into the fill and never into black.
+  const edgeMeans: Partial<Record<Side, number>> = {};
+  const lines = layout.sides.map((side) => {
+    const line = edgeLine(px, side, prm.rows, prm.blur);
+    let m = 0;
+    for (let i = 0; i < line.length; i += 3) m += 0.299 * line[i] + 0.587 * line[i + 1] + 0.114 * line[i + 2];
+    edgeMeans[side] = m / (line.length / 3);
+    const horizontal = side === "top" || side === "bottom";
+    const c = createCanvas(horizontal ? line.length / 3 : 1, horizontal ? 1 : line.length / 3);
+    const lctx = ctx2d(c);
+    const img = lctx.createImageData(c.width, c.height);
+    img.data.set(lineToRgba(line));
+    lctx.putImageData(img, 0, 0);
+    return { side, canvas: c };
+  });
+  ctx.imageSmoothingEnabled = false;
+  const mid = axis === "y" ? layout.dy + Math.round(dh / 2) : layout.dx + Math.round(dw / 2);
+  for (const { side, canvas } of lines) {
+    const two = lines.length === 2;
+    if (axis === "y") {
+      const [y0, y1] = !two ? [0, th] : side === "top" ? [0, mid] : [mid, th];
+      ctx.drawImage(canvas, 0, y0, tw, y1 - y0);
+    } else {
+      const [x0, x1] = !two ? [0, tw] : side === "left" ? [0, mid] : [mid, tw];
+      ctx.drawImage(canvas, x0, 0, x1 - x0, th);
+    }
+  }
+  ctx.imageSmoothingEnabled = true;
+
+  // 2. Feather: a linear 0→100% alpha ramp only on the edge(s) meeting the band.
+  const f = layout.feather;
+  if (f > 0) {
+    const len = axis === "y" ? dh : dw;
+    const g = axis === "y" ? sctx.createLinearGradient(0, 0, 0, dh) : sctx.createLinearGradient(0, 0, dw, 0);
+    const startSide = axis === "y" ? "top" : "left";
+    const endSide = axis === "y" ? "bottom" : "right";
+    const fadeStart = layout.sides.includes(startSide);
+    const fadeEnd = layout.sides.includes(endSide);
+    g.addColorStop(0, fadeStart ? "rgba(0,0,0,0)" : "rgba(0,0,0,1)");
+    g.addColorStop(Math.min(0.5, f / len), "rgba(0,0,0,1)");
+    g.addColorStop(Math.max(0.5, 1 - f / len), "rgba(0,0,0,1)");
+    g.addColorStop(1, fadeEnd ? "rgba(0,0,0,0)" : "rgba(0,0,0,1)");
+    sctx.globalCompositeOperation = "destination-in";
+    sctx.fillStyle = g;
+    sctx.fillRect(0, 0, dw, dh);
+    sctx.globalCompositeOperation = "source-over";
+  }
+
+  // 3. The screenshot itself, at its offset.
+  ctx.drawImage(shot, layout.dx, layout.dy);
+  return { layout, edgeMeans };
 }
 
 /** Cheap, portable blur: cover-draw to a tiny canvas, then upscale twice with smoothing. */
@@ -342,29 +458,34 @@ export async function renderToBlob(
   enc: EncodeOptions,
 ): Promise<RenderResult> {
   const canvas = createCanvas(size.w, size.h);
-  const ctx = ctx2d(canvas, { alpha: false, willReadFrequently: enc.format === "png" });
-  drawComposition(ctx, src, size.w, size.h, opts);
+  const edge = opts.mode === "fit" && opts.backdrop === "edge";
+  const ctx = ctx2d(canvas, { alpha: false, willReadFrequently: enc.format === "png" || edge });
+  const info = drawComposition(ctx, src, size.w, size.h, opts);
 
-  const base = { width: size.w, height: size.h };
+  const needPixels = enc.format === "png" || !!info.layout;
+  const data = needPixels ? ctx.getImageData(0, 0, size.w, size.h).data : undefined;
+  const checks = info.layout && data ? checkExtension({ data, width: size.w, height: size.h }, info.layout, info.edgeMeans ?? {}) : undefined;
+  const base = { width: size.w, height: size.h, checks, joins: info.layout?.joins };
 
-  if (enc.format === "png") {
-    const { data } = ctx.getImageData(0, 0, size.w, size.h);
+  if (enc.format === "png" && data) {
     const png = await encodeRgbPng(data, size.w, size.h);
     if (!enc.maxBytes || png.size <= enc.maxBytes) return { ...base, blob: png, format: "png" };
-    // Too large: fall through to JPEG.
-    const jpeg = await jpegUnder(canvas, 0.92, enc.maxBytes);
+    // Too large: re-export as JPEG from 0.92 down until it fits.
+    const { blob, jpegQuality } = await jpegUnder(canvas, 0.92, enc.maxBytes);
     return {
       ...base,
-      ...jpeg,
-      note: `PNG was ${(png.size / 1048576).toFixed(1)} MB; exported as JPEG q${Math.round(jpeg.quality * 100)} to stay under the limit.`,
+      blob,
+      format: "jpeg",
+      note: `PNG was ${(png.size / 1048576).toFixed(1)} MB; exported as JPEG q${Math.round(jpegQuality * 100)} to stay under the limit.`,
     };
   }
 
-  const jpeg = await jpegUnder(canvas, enc.quality, enc.maxBytes);
+  const { blob, jpegQuality } = await jpegUnder(canvas, enc.quality, enc.maxBytes);
   return {
     ...base,
-    ...jpeg,
-    note: jpeg.quality < enc.quality ? `Quality lowered to ${Math.round(jpeg.quality * 100)} to meet size limit.` : undefined,
+    blob,
+    format: "jpeg",
+    note: jpegQuality < enc.quality ? `Quality lowered to ${Math.round(jpegQuality * 100)} to meet size limit.` : undefined,
   };
 }
 
@@ -375,5 +496,5 @@ async function jpegUnder(canvas: AnyCanvas, quality: number, maxBytes?: number) 
     q = Math.round((q - 0.07) * 100) / 100;
     blob = await canvasToJpeg(canvas, q);
   }
-  return { blob, format: "jpeg" as const, quality: q };
+  return { blob, jpegQuality: q };
 }

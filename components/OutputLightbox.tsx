@@ -19,6 +19,8 @@ export interface LightboxItem {
   bytes?: number;
   format?: "png" | "jpeg";
   compliance?: ComplianceResult;
+  /** Edge-extension checks */
+  checks?: { label: string; ok: boolean }[];
   note?: string;
   error?: string;
 }
@@ -179,6 +181,11 @@ export function OutputLightbox({
             {item.compliance?.checks.map((c) => (
               <span key={c.label} className={cn("text-muted-foreground", !c.ok && c.level !== "warn" && "text-destructive")}>
                 {c.ok ? "✓" : c.level === "warn" ? "!" : "✗"} {c.label}
+              </span>
+            ))}
+            {item.checks?.map((c) => (
+              <span key={c.label} className={cn("text-muted-foreground", !c.ok && "text-amber-700 dark:text-amber-400")}>
+                {c.ok ? "✓" : "!"} {c.label}
               </span>
             ))}
             {item.note && <span className="text-amber-700 dark:text-amber-400">{item.note}</span>}

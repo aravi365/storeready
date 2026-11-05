@@ -54,12 +54,13 @@ import { PRESETS, STORE_LABEL, evaluate, type DeviceClass, type Preset, type Siz
 import { detectAsset, scaleFactor, type Detection } from "@/utils/detect";
 import { partitionUploads, relPathOf } from "@/utils/uploads";
 import { languageName } from "@/utils/languages";
+import type { ExtendChoice } from "@/utils/edgeExtend";
 import { LanguageSelect } from "@/components/LanguageSelect";
 
 const fmtBytes = (n: number) =>
   n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`;
 
-const STORE_SHORT = { app_store: "iOS", play_store: "Play" } as const;
+const STORE_SHORT = { app_store: "iOS", play_store: "Play", custom: "Custom" } as const;
 
 const SET_NAME: Record<DeviceClass, string> = { phone: "Mobile", tablet: "iPad / Tablet", foldable: "iPhone Duo", xr: "Android XR" };
 
@@ -381,6 +382,25 @@ function AssetCard({
               { value: "stretch", label: "Stretch" },
             ]}
           />
+          {opts.mode === "fit" && opts.backdrop === "edge" && (
+            <label className="inline-flex h-7 items-center gap-1.5 rounded-lg border bg-muted/50 pr-1 pl-2 text-xs text-muted-foreground">
+              Extend
+              <select
+                aria-label="Edge extension side"
+                value={a.extend ?? "auto"}
+                onChange={(e) => onUpdate({ extend: e.target.value as ExtendChoice })}
+                className="h-6 cursor-pointer rounded-md bg-background px-1.5 font-medium text-foreground outline-none"
+              >
+                <option value="auto">Auto (plainest edge)</option>
+                <option value="top">Top</option>
+                <option value="bottom">Bottom</option>
+                <option value="top-bottom">Top &amp; bottom</option>
+                <option value="left">Left</option>
+                <option value="right">Right</option>
+                <option value="left-right">Left &amp; right</option>
+              </select>
+            </label>
+          )}
           <Button variant="ghost" size="icon-sm" aria-label={`Remove ${a.name}`} onClick={onRemove} className="pointer-events-auto">
             <Trash2 />
           </Button>
@@ -481,6 +501,8 @@ function PreviewTile({
 }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const [open, setOpen] = useState(false);
+  // Edge-extension layout from the preview render: sides and join lines, as fractions of the tile.
+  const [edge, setEdge] = useState<{ sides: string[]; joins: { axis: "x" | "y"; at: number }[] } | null>(null);
 
   // Display box: fixed height, width capped (feature graphic is very wide).
   const scale = Math.min(PREVIEW_H / size.h, PREVIEW_MAX_W / size.w);
@@ -502,9 +524,15 @@ function PreviewTile({
     // Preview renders the same composition the exporter uses, just at screen scale.
     const tmp = createCanvas(cw, ch);
     const tctx = tmp.getContext("2d") as CanvasRenderingContext2D;
-    drawComposition(tctx, src, cw, ch, opts);
+    const info = drawComposition(tctx, src, cw, ch, opts);
     ctx.drawImage(tmp, 0, 0);
-  }, [asset.preview, dw, dh, opts.mode, opts.backdrop, opts.matte, opts.padding, opts.focus?.x, opts.focus?.y]); // eslint-disable-line react-hooks/exhaustive-deps
+    // Syncing UI with what was just drawn on the canvas (an external system), not derived state.
+    setEdge(
+      info.layout
+        ? { sides: info.layout.sides, joins: info.layout.joins.map((j) => ({ axis: j.axis, at: j.pos / (j.axis === "y" ? ch : cw) })) }
+        : null,
+    );
+  }, [asset.preview, dw, dh, opts.mode, opts.backdrop, opts.matte, opts.padding, opts.focus?.x, opts.focus?.y, opts.extend]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const compliance = evaluate(preset, size, {
     hasAlpha: false,
@@ -512,21 +540,32 @@ function PreviewTile({
     bytes: output?.status === "done" ? output.bytes : undefined,
   });
   const ok = compliance.ok && output?.status !== "error";
-  const fit = opts.mode === "fit" ? planFit(asset.width, asset.height, size.w, size.h, opts.padding) : null;
+  const fit = opts.mode === "fit" ? planFit(asset.width, asset.height, size.w, size.h, opts.padding, opts.backdrop) : null;
+  const seamIssue = output?.status === "done" && output.checks?.some((c) => !c.ok);
   // When Fit snaps (fills edge to edge) it scales like Fill.
-  const factor = scaleFactor({ w: asset.width, h: asset.height }, size, fit && fit.strategy !== "letterbox" ? "fill" : opts.mode);
+  const factor = scaleFactor({ w: asset.width, h: asset.height }, size, fit && (fit.strategy === "exact" || fit.strategy === "snap") ? "fill" : opts.mode);
   const fitNote = !fit
     ? null
     : fit.strategy === "exact"
-      ? "fills exactly"
-      : fit.strategy === "snap"
-        ? `edge trim ${(fit.trim * 100).toFixed(2)}% (≈${Math.round(fit.trim * (fit.axis === "x" ? asset.width : asset.height))} px)`
+      ? "exact fit"
+      : fit.strategy === "extend"
+        ? `+${fit.bars} px ${edge?.sides.length ? edge.sides.join("+") : fit.axis === "y" ? "top/btm" : "sides"}`
+        : fit.strategy === "snap"
+        ? `trim ${(fit.trim * 100).toFixed(1)}%`
         : fit.bars > 0
           ? `bars ${fit.bars} px`
           : null;
+  const fitTitle =
+    fit?.strategy === "extend"
+      ? `Canvas extended by ${fit.bars} px${edge?.sides.length ? ` at the ${edge.sides.join(" and ")}` : ""}, continuing the screenshot's own background. Nothing is cropped. Hover the image to see the join.`
+      : fit?.strategy === "snap"
+        ? "Shapes differ by under 1%, so Fit fills the frame with an even trim instead of hairline bars"
+        : fit?.strategy === "letterbox"
+          ? "The whole image is kept; this much space is filled with the background"
+          : "Same shape as the target: resized only";
 
   return (
-    <figure className="shrink-0 space-y-1.5" style={{ width: Math.max(dw, 132) }}>
+    <figure className="shrink-0 space-y-1.5" style={{ width: Math.max(dw, 150) }}>
       <div className="relative flex items-center justify-center" style={{ height: PREVIEW_H }}>
         <div className="relative">
         <button
@@ -537,7 +576,19 @@ function PreviewTile({
           title="Open full-size preview"
         >
           <canvas ref={ref} style={{ width: dw, height: dh }} className="block rounded-md border shadow-sm" />
-          <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-md bg-black/0 opacity-0 transition group-hover/tile:bg-black/35 group-hover/tile:opacity-100 group-focus-visible/tile:opacity-100">
+          {/* Join lines: shown on hover so you can eyeball the seam */}
+          {edge?.joins.map((j, i) => (
+            <span
+              key={i}
+              aria-hidden
+              className={cn(
+                "pointer-events-none absolute border-fuchsia-500 opacity-0 transition group-hover/tile:opacity-100",
+                j.axis === "y" ? "inset-x-0 border-t-2 border-dashed" : "inset-y-0 border-l-2 border-dashed",
+              )}
+              style={j.axis === "y" ? { top: `${j.at * 100}%` } : { left: `${j.at * 100}%` }}
+            />
+          ))}
+          <span className="pointer-events-none absolute inset-x-0 bottom-1.5 flex items-center justify-center opacity-0 transition group-hover/tile:opacity-100 group-focus-visible/tile:opacity-100">
             <span className="flex items-center gap-1 rounded-full bg-background/90 px-2.5 py-1 text-xs font-medium shadow">
               <Maximize2 className="size-3" /> Preview
             </span>
@@ -564,10 +615,10 @@ function PreviewTile({
       <figcaption className="space-y-1 text-xs">
         <div className="flex items-center justify-between gap-1">
           <span className="truncate font-medium" title={`${STORE_LABEL[preset.store]} · ${preset.label}`}>
-            {preset.store === "app_store" ? "iOS" : "Play"} · {preset.label}
+            {preset.store === "custom" ? preset.label : `${STORE_SHORT[preset.store]} · ${preset.label}`}
           </span>
         </div>
-        <div className="flex items-center justify-between gap-1">
+        <div className="flex flex-wrap items-center justify-between gap-x-1 gap-y-0.5">
           <span className="font-mono text-muted-foreground tabular-nums">
             {size.w}×{size.h}
           </span>
@@ -586,6 +637,15 @@ function PreviewTile({
             {ok ? "Compliant" : "Check"}
           </button>
         </div>
+        {seamIssue && (
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400"
+          >
+            <AlertTriangle className="size-3" /> Check seam
+          </button>
+        )}
         {open && (
           <ul className="space-y-0.5 rounded-md border bg-muted/40 p-1.5">
             {compliance.checks.map((c) => (
@@ -600,32 +660,29 @@ function PreviewTile({
                 <span>{c.label}</span>
               </li>
             ))}
+            {output?.checks?.map((c) => (
+              <li key={c.label} className="flex items-start gap-1">
+                {c.ok ? <CheckCircle2 className="mt-px size-3 shrink-0 text-emerald-600" /> : <AlertTriangle className="mt-px size-3 shrink-0 text-amber-600" />}
+                <span>{c.label}</span>
+              </li>
+            ))}
             {preset.warning && <li className="text-amber-700 dark:text-amber-400">{preset.warning}</li>}
           </ul>
         )}
-        <div
-          className={cn(
-            "font-mono text-xs tabular-nums",
-            factor > 1.25 ? "text-amber-700 dark:text-amber-400" : "text-muted-foreground",
-          )}
-          title={factor > 1 ? "Source is upscaled to reach this size" : "Source is downscaled"}
-        >
-          {factor > 1.005 ? "↑" : factor < 0.995 ? "↓" : "="} {factor.toFixed(2)}× {factor > 1.25 && "· may look soft"}
-        </div>
-        {fitNote && (
+        <div className="space-y-0.5 font-mono text-xs whitespace-nowrap tabular-nums text-muted-foreground">
           <div
-            className="font-mono text-xs text-muted-foreground"
-            title={
-              fit?.strategy === "snap"
-                ? "Shapes differ by under 1%, so Fit fills the frame and trims this much evenly instead of adding hairline bars"
-                : fit?.strategy === "letterbox"
-                  ? "The whole image is kept; this much space is filled with the background"
-                  : undefined
-            }
+            className={cn("truncate", factor > 1.25 && "text-amber-700 dark:text-amber-400")}
+            title={factor > 1.25 ? "Upscaled more than 1.25×, so it may look soft. Use a larger source for this size." : factor > 1 ? "Source is upscaled to reach this size" : "Source is downscaled"}
           >
-            {fitNote}
+            {factor > 1.005 ? "↑" : factor < 0.995 ? "↓" : "="}
+            {factor.toFixed(2)}× scale
           </div>
-        )}
+          {fitNote && (
+            <div className="truncate" title={fitTitle}>
+              {fitNote}
+            </div>
+          )}
+        </div>
         {output?.status === "done" && (
           <div className="flex items-center justify-between text-muted-foreground">
             <span>

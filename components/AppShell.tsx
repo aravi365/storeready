@@ -48,9 +48,9 @@ export function AppShell() {
             <div className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 via-violet-500 to-fuchsia-500 text-white shadow-lg shadow-violet-500/25">
               <Images className="size-5" />
             </div>
-            <div className="hidden leading-tight sm:block">
+            <div className="hidden leading-tight whitespace-nowrap sm:block">
               <p className="font-semibold tracking-tight">StoreReady</p>
-              <p className="text-xs text-muted-foreground">Store assets, ready to submit</p>
+              <p className="hidden text-xs text-muted-foreground lg:block">Store assets, ready to submit</p>
             </div>
           </div>
 
@@ -64,12 +64,12 @@ export function AppShell() {
                 aria-label={t.label}
                 title={t.label}
                 className={cn(
-                  "flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm font-medium transition-all sm:px-4",
+                  "flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm font-medium whitespace-nowrap transition-all lg:px-4",
                   tab === t.id ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
                 )}
               >
                 {t.icon}
-                <span className="hidden sm:inline">{t.label}</span>
+                <span className="hidden md:inline">{t.label}</span>
               </button>
             ))}
           </nav>
@@ -79,7 +79,7 @@ export function AppShell() {
               href="https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications"
               target="_blank"
               rel="noreferrer"
-              className="hidden items-center gap-1 rounded-full border bg-card px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground md:flex"
+              className="hidden items-center gap-1 rounded-full border bg-card px-2.5 py-1 text-xs whitespace-nowrap text-muted-foreground hover:text-foreground xl:flex"
             >
               <ShieldCheck className="size-3 text-emerald-500" /> Specs checked Nov 2026
             </a>

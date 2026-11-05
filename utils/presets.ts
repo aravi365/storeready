@@ -24,7 +24,7 @@
  *    • Google no longer publishes a per-file limit; we keep the historical 8 MB cap as a safety margin.
  */
 
-export type Store = "app_store" | "play_store";
+export type Store = "app_store" | "play_store" | "custom";
 export type DeviceClass = "phone" | "tablet" | "foldable" | "xr";
 export type Category = "screenshot" | "feature_graphic";
 /** A language id from utils/languages.ts (App Store Connect code, e.g. "en-US", "ja", "zh-Hans"). */
@@ -178,11 +178,11 @@ export const PRESETS: Preset[] = [
     folder: "phone",
     deviceClass: "phone",
     category: "screenshot",
-    portrait: { w: 1080, h: 1920 },
+    portrait: { w: 2160, h: 3840 },
     defaultEnabled: true,
     rules: { kind: "play_phone" },
     maxBytes: PLAY_MAX_BYTES,
-    note: "9:16 at ≥1080×1920 qualifies for Play promotional placements.",
+    note: "2160×3840 (9:16): within Play's 320–3840 px limits and promo-eligible (≥1080 px).",
   },
   {
     id: "gp_tablet_10",
@@ -191,7 +191,7 @@ export const PRESETS: Preset[] = [
     folder: "tablet_10in",
     deviceClass: "tablet",
     category: "screenshot",
-    portrait: { w: 1440, h: 2560 },
+    portrait: { w: 2160, h: 3840 },
     defaultEnabled: true,
     rules: { kind: "play_large_screen" },
     maxBytes: PLAY_MAX_BYTES,
@@ -204,7 +204,7 @@ export const PRESETS: Preset[] = [
     folder: "tablet_7in",
     deviceClass: "tablet",
     category: "screenshot",
-    portrait: { w: 1080, h: 1920 },
+    portrait: { w: 2160, h: 3840 },
     defaultEnabled: true,
     rules: { kind: "play_large_screen" },
     maxBytes: PLAY_MAX_BYTES,
@@ -280,9 +280,27 @@ export function setPlayTablets(presets: Set<string>, on: boolean): Set<string> {
   return next;
 }
 
+/** A user-defined W×H output, applied to every image (any device type). */
+export function customPreset(size: Size): Preset {
+  const portrait = { w: Math.min(size.w, size.h), h: Math.max(size.w, size.h) };
+  return {
+    id: `custom_${portrait.w}x${portrait.h}`,
+    store: "custom",
+    label: `Custom ${portrait.w}×${portrait.h}`,
+    folder: `${portrait.w}x${portrait.h}`,
+    deviceClass: "phone",
+    category: "screenshot",
+    portrait,
+    defaultEnabled: true,
+    rules: { kind: "exact", accepted: [portrait, { w: portrait.h, h: portrait.w }] },
+    note: "Your custom size. Keeps each image's orientation.",
+  };
+}
+
 export const STORE_LABEL: Record<Store, string> = {
   app_store: "Apple App Store",
   play_store: "Google Play",
+  custom: "Custom sizes",
 };
 
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CheckCircle2, Download, Eye, Loader2, Rows3, Trash2, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Download, Eye, Loader2, Rows3, Trash2, XCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Segmented } from "@/components/Segmented";
 import { cn } from "@/lib/utils";
@@ -75,7 +75,7 @@ export function OutputsTable({
               const out = outputFor(j);
               const a = assetMap.get(j.assetId);
               const snapped =
-                !!a && j.opts.mode === "fit" && planFit(a.width, a.height, j.size.w, j.size.h, j.opts.padding).strategy !== "letterbox";
+                !!a && j.opts.mode === "fit" && ["exact", "snap"].includes(planFit(a.width, a.height, j.size.w, j.size.h, j.opts.padding, j.opts.backdrop).strategy);
               const f = a ? scaleFactor({ w: a.width, h: a.height }, j.size, snapped ? "fill" : j.opts.mode) : 1;
               const path = out?.path ?? `${j.pathStem}.${j.enc.format === "png" ? "png" : "jpg"}`;
               const folder = path.split("/").slice(1, -1).join("/");
@@ -118,6 +118,13 @@ export function OutputsTable({
                     ) : out.status === "error" ? (
                       <span className="inline-flex items-center gap-1 text-destructive" title={out.error}>
                         <XCircle className="size-3" /> Failed
+                      </span>
+                    ) : out.compliance?.ok && out.checks?.some((c) => !c.ok) ? (
+                      <span
+                        className="inline-flex items-center gap-1 text-amber-700 dark:text-amber-400"
+                        title={out.checks.filter((c) => !c.ok).map((c) => c.label).join("\n")}
+                      >
+                        <AlertTriangle className="size-3" /> Check seam
                       </span>
                     ) : out.compliance?.ok ? (
                       <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400">

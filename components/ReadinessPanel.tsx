@@ -15,6 +15,7 @@ const ICON = {
 const GROUP_LABEL: Record<ReadinessItem["store"], string> = {
   app_store: "Apple App Store",
   play_store: "Google Play",
+  custom: "Custom sizes",
   files: "Files",
 };
 
